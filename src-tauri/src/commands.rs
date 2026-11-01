@@ -5,14 +5,17 @@ use std::time::Instant;
 use std::sync::atomic::Ordering;
 
 use bootforge_core::acquire::{self, AcquireEvent, Acquired};
+use bootforge_core::catalog::FlashMode;
 use bootforge_core::catalog::load::{self, DEFAULT_CATALOG_URL, Loaded};
 use bootforge_core::device::{self, Drive, ScanOptions};
+use bootforge_core::flash::{FlashJob, FlashReport, ForgeRequest};
 use bootforge_core::resolve::{self, ResolvedImage};
 use tauri::ipc::Channel;
 use tauri::{AppHandle, Manager, State};
 use url::Url;
 
 use crate::error::AppError;
+use crate::events::ForgeEvent;
 use crate::state::{AppState, RESOLVE_TTL};
 
 /// Katalog-URL. Für Tests/Entwicklung per Umgebungsvariable `BOOTFORGE_CATALOG_URL`
@@ -133,6 +136,75 @@ pub async fn prepare_image(
 #[tauri::command]
 pub fn cancel_prepare(state: State<'_, AppState>) {
     state.cancel.store(true, Ordering::SeqCst);
+}
+
+/// Ergebnis von „Forge!“.
+#[derive(serde::Serialize)]
+pub struct ForgeResult {
+    pub acquired: Acquired,
+    pub report: FlashReport,
+}
+
+/// „Forge!“: Image beschaffen + prüfen (wie `prepare_image`), dann auf den Stick schreiben.
+///
+/// `confirm_name` ist das, was der Nutzer im Bestätigungsdialog eingetippt hat. Es wird HIER
+/// noch einmal geprüft – ein Fehler in der GUI darf die Bestätigung nicht aushebeln.
+#[tauri::command]
+pub async fn forge(
+    variant_id: String,
+    drive: Drive,
+    show_external_hdds: bool,
+    confirm_name: String,
+    on_event: Channel<ForgeEvent>,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<ForgeResult, AppError> {
+    if !confirm_name.trim().eq_ignore_ascii_case(drive.name.trim()) {
+        return Err(AppError::ConfirmMismatch);
+    }
+    if state.busy.swap(true, Ordering::SeqCst) {
+        return Err(AppError::Busy);
+    }
+    struct Done<'a>(&'a AppState);
+    impl Drop for Done<'_> {
+        fn drop(&mut self) {
+            self.0.busy.store(false, Ordering::SeqCst);
+        }
+    }
+    let _done = Done(&state);
+    state.cancel.store(false, Ordering::SeqCst);
+
+    let img = resolve_cached(&state, variant_id, false).await?;
+    if img.flash_mode != FlashMode::Raw {
+        return Err(AppError::NotSupportedYet(
+            "Windows-Installationsmedien (folgt in Phase 6)".into(),
+        ));
+    }
+
+    // 1) Beschaffen und prüfen
+    let dir = app
+        .path()
+        .app_cache_dir()
+        .map_err(|e| AppError::Internal(e.to_string()))?
+        .join("images");
+    let acquired = acquire::acquire(&state.http, &img, &dir, &state.cancel, |e| {
+        let _ = on_event.send(ForgeEvent::Acquire(e));
+    })
+    .await?;
+
+    // 2) Schreiben
+    let req = ForgeRequest {
+        drive,
+        opts: ScanOptions { show_external_hdds },
+        job: FlashJob {
+            image: acquired.path.clone(),
+            compression: img.compression,
+            algorithm: acquired.algorithm,
+            expected_hash: acquired.hash.clone(),
+        },
+    };
+    let report = crate::forge::flash(req, state.cancel.clone(), on_event).await?;
+    Ok(ForgeResult { acquired, report })
 }
 
 /// Listet alle Laufwerke mit Urteil (wählbar oder nicht, mit Grund).

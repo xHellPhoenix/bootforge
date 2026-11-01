@@ -1,5 +1,6 @@
 use bootforge_core::acquire::AcquireError;
 use bootforge_core::download::DownloadError;
+use bootforge_core::flash::FlashError;
 use bootforge_core::http::FetchError;
 use bootforge_core::resolve::ResolveError;
 use serde::Serialize;
@@ -39,8 +40,56 @@ pub enum AppError {
     Disk(String),
     #[error("Laufwerke konnten nicht gelesen werden: {0}")]
     DeviceScan(String),
+    // --- Flashen ---
+    #[error("Bestätigung stimmt nicht mit dem Laufwerksnamen überein")]
+    ConfirmMismatch,
+    #[error("Laufwerk hat sich geändert: {0}")]
+    DriveChanged(String),
+    #[error("Image passt nicht zur Prüfsumme: {0}")]
+    ImageMismatch(String),
+    #[error("Image wurde während des Schreibens verändert")]
+    ImageChanged,
+    #[error("Stick zu klein: {0}")]
+    TooSmall(String),
+    #[error("Zurücklesen fehlgeschlagen: {0}")]
+    ReadbackMismatch(String),
+    #[error("Laufwerk wird verwendet: {0}")]
+    DriveBusy(String),
+    #[error("Administratorrechte nötig")]
+    NotElevated,
+    /// Nur Linux: pkexec-Dialog abgebrochen.
+    #[cfg(target_os = "linux")]
+    #[error("Anmeldung abgebrochen oder abgelehnt")]
+    AuthCancelled,
+    /// Nur Linux: Root-Helper nicht gefunden.
+    #[cfg(target_os = "linux")]
+    #[error("Hilfsprogramm nicht gefunden: {0}")]
+    HelperMissing(String),
+    /// Abgebrochen, nachdem schon geschrieben wurde: der Stick ist nicht mehr bootbar.
+    #[error("abgebrochen während des Schreibens")]
+    FlashCancelled,
     #[error("{0}")]
     Internal(String),
+}
+
+impl AppError {
+    /// `wrote`: hatte das Schreiben schon begonnen? (wichtig für die Abbruch-Meldung)
+    pub fn from_flash(e: FlashError, wrote: bool) -> Self {
+        let detail = e.to_string();
+        match e {
+            FlashError::Drive(d) => AppError::DriveChanged(d),
+            FlashError::ImageMismatch { .. } => AppError::ImageMismatch(detail),
+            FlashError::ImageChanged => AppError::ImageChanged,
+            FlashError::TooSmall { .. } => AppError::TooSmall(detail),
+            FlashError::ReadbackMismatch { .. } => AppError::ReadbackMismatch(detail),
+            FlashError::Busy(b) => AppError::DriveBusy(b),
+            FlashError::NotElevated => AppError::NotElevated,
+            FlashError::Unsupported(u) => AppError::NotSupportedYet(u),
+            FlashError::Cancelled if wrote => AppError::FlashCancelled,
+            FlashError::Cancelled => AppError::Cancelled,
+            FlashError::Io(_) => AppError::Disk(detail),
+        }
+    }
 }
 
 impl From<AcquireError> for AppError {

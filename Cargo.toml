@@ -4,7 +4,7 @@
 # Später kommt noch ein kleiner Flash-Helper dazu (läuft unter Linux via pkexec mit Root-Rechten).
 [workspace]
 resolver = "3"
-members = ["crates/bootforge-core", "src-tauri"]
+members = ["crates/bootforge-core", "crates/bootforge-flash-helper", "src-tauri"]
 
 [workspace.package]
 version = "0.1.0"
@@ -24,9 +24,18 @@ schemars = "1"
 # HTTP-Client. Standard-TLS ist in 0.13 rustls (in Rust geschrieben) statt OpenSSL:
 # gleiches Verhalten unter Windows und Linux, keine OpenSSL-Version, die zur Distro passen muss.
 reqwest = { version = "0.13", features = ["json"] }
-tokio = { version = "1", features = ["fs", "macros", "rt-multi-thread", "signal", "sync", "time"] }
+tokio = { version = "1", features = ["fs", "io-util", "macros", "process", "rt-multi-thread", "signal", "sync", "time"] }
 percent-encoding = "2"
 sha2 = "0.11"
 md-5 = "0.11"
+# gzip im Fluss entpacken (Batocera .img.gz) – reine Rust-Implementierung (miniz_oxide)
+flate2 = "1"
+libc = "0.2"
 # OpenPGP ohne Standard-Features: das Krypto-Backend wählt jedes Crate pro Betriebssystem selbst.
 sequoia-openpgp = { version = "2", default-features = false }
+
+# Abhängigkeiten (Hashing, Krypto, Entpacken) auch im Debug-Build optimieren.
+# Ohne das hasht `cargo run`/`tauri dev` nur ~15 MB/s statt mehreren 100 MB/s.
+# Unser eigener Code bleibt unoptimiert: schnelles Neukompilieren und besseres Debugging.
+[profile.dev.package."*"]
+opt-level = 2

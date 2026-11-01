@@ -121,3 +121,27 @@ pub fn scan() -> io::Result<Vec<RawDrive>> {
         })
         .collect())
 }
+
+/// Alle Volumes auf Datenträger `disk_number`, als Pfade zum Öffnen (`\\?\Volume{…}`).
+///
+/// Nur die GUID-Pfade: Ein Volume mit Laufwerksbuchstaben hat zusätzlich `E:\` – dasselbe
+/// Volume zweimal zu sperren würde scheitern. Partitionen ohne Volume (z. B. MSR) haben keine.
+pub fn volume_paths(disk_number: u32) -> io::Result<Vec<String>> {
+    let storage =
+        WMIConnection::with_namespace_path(r"ROOT\Microsoft\Windows\Storage").map_err(wmi_err)?;
+    let parts: Vec<MsftPartition> = storage
+        .raw_query(format!(
+            "SELECT DiskNumber, AccessPaths FROM MSFT_Partition WHERE DiskNumber = {disk_number}"
+        ))
+        .map_err(wmi_err)?;
+    let mut out: Vec<String> = parts
+        .into_iter()
+        .flat_map(|p| p.access_paths.unwrap_or_default())
+        .filter(|p| p.starts_with(r"\\?\Volume{"))
+        // CreateFile auf ein Volume: ohne abschließenden Backslash (sonst wäre es das Wurzelverzeichnis).
+        .map(|p| p.trim_end_matches('\\').to_owned())
+        .collect();
+    out.sort();
+    out.dedup();
+    Ok(out)
+}

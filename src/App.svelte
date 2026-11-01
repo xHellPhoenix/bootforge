@@ -9,6 +9,7 @@
   import Stepper from "./components/Stepper.svelte";
   import PreparePanel from "./components/PreparePanel.svelte";
   import UsbDialog from "./components/UsbDialog.svelte";
+  import ConfirmDialog from "./components/ConfirmDialog.svelte";
   import { createJob, run, type Job } from "./lib/job.svelte";
 
   let response = $state<CatalogResponse | null>(null);
@@ -25,6 +26,10 @@
 
   let selectedDrive = $state<Drive | null>(null);
   let usbDialogOpen = $state(false);
+  /** Mit welcher Option wurde der Stick gewählt? (Muss beim Schreiben identisch geprüft werden.) */
+  let selectedWithHdds = $state(false);
+  /** Offener Bestätigungsdialog: Titel des Images für die Anzeige. */
+  let confirmFor = $state<string | null>(null);
 
   const resolvedImage = $derived.by(() => {
     const r = selectedVariant && resolved[selectedVariant.id];
@@ -61,6 +66,18 @@
     // Schon erfolgreich ermittelt oder gerade am Laden? Dann nicht nochmal fragen.
     const current = resolved[v.id];
     if (!current || current.status === "error") resolveVariant(v.id);
+  }
+
+  function startForge(confirmName: string) {
+    const title = confirmFor;
+    confirmFor = null;
+    if (!resolvedImage || !selectedDrive || !title) return;
+    job = createJob(title, resolvedImage, {
+      drive: $state.snapshot(selectedDrive),
+      showExternalHdds: selectedWithHdds,
+      confirmName,
+    });
+    run(job);
   }
 
   function startDownload(title: string) {
@@ -133,8 +150,9 @@
         selected={selectedDrive}
         imageSize={resolvedImage?.size ?? null}
         minGb={selectedVariant?.min_usb_gb ?? null}
-        onselect={(d) => {
+        onselect={(d, withHdds) => {
           selectedDrive = d;
+          selectedWithHdds = withHdds;
           usbDialogOpen = false;
         }}
         onclose={(stillPresent) => {
@@ -143,7 +161,16 @@
         }}
       />
     {/if}
+    {#if confirmFor && selectedDrive}
+      <ConfirmDialog
+        drive={selectedDrive}
+        imageLabel={confirmFor}
+        onconfirm={startForge}
+        oncancel={() => (confirmFor = null)}
+      />
+    {/if}
     <ForgeBar
+      onforge={(title) => (confirmFor = title)}
       drive={selectedDrive}
       {driveFits}
       onchoosedrive={() => (usbDialogOpen = true)}

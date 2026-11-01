@@ -109,6 +109,17 @@ pub enum AcquireError {
     Cancelled,
 }
 
+impl Acquired {
+    /// „SHA-256“, „SHA-512“, „MD5“ – für Anzeigen.
+    pub fn algorithm_name(&self) -> &'static str {
+        match self.algorithm {
+            HashAlgorithm::Sha256 => "SHA-256",
+            HashAlgorithm::Sha512 => "SHA-512",
+            HashAlgorithm::Md5 => "MD5",
+        }
+    }
+}
+
 impl From<DownloadError> for AcquireError {
     fn from(e: DownloadError) -> Self {
         match e {

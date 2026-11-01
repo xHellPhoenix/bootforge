@@ -1,0 +1,138 @@
+//! Echter Linux-Gerätezugriff mit einem Loop-Device (eine Datei, die der Kernel als Laufwerk
+//! behandelt): Aushängen, exklusives Öffnen (O_EXCL), O_DIRECT, Zurücklesen.
+//!
+//! Braucht root und legt Kernel-Geräte an – läuft deshalb nur auf ausdrücklichen Wunsch:
+//!
+//!     sudo BOOTFORGE_LOOP_TEST=1 cargo test -p bootforge-core --test flash_loop -- --ignored
+//!
+//! Hinweis: Hier wird bewusst NICHT `flash_drive` benutzt, denn das lässt nur USB-Sticks zu
+//! (Loop-Devices sind zu Recht verboten). Getestet wird der Teil darunter.
+#![cfg(target_os = "linux")]
+
+use std::os::unix::fs::OpenOptionsExt;
+use std::path::Path;
+use std::process::Command;
+use std::sync::atomic::AtomicBool;
+
+use bootforge_core::catalog::{Compression, HashAlgorithm};
+use bootforge_core::device::{Bus, Drive};
+use bootforge_core::flash::linux::{finish, open};
+use bootforge_core::flash::write::{verify_image, write_and_verify};
+use bootforge_core::flash::{FlashError, FlashJob};
+use bootforge_core::verify::sums::Hasher;
+
+const MB: u64 = 1024 * 1024;
+
+fn sh(cmd: &str, args: &[&str]) -> String {
+    let out = Command::new(cmd).args(args).output().expect(cmd);
+    assert!(
+        out.status.success(),
+        "{cmd} {args:?}: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    String::from_utf8_lossy(&out.stdout).trim().to_owned()
+}
+
+fn enabled() -> bool {
+    std::env::var("BOOTFORGE_LOOP_TEST").is_ok()
+}
+
+struct Loop {
+    dev: String,
+}
+impl Drop for Loop {
+    fn drop(&mut self) {
+        let _ = Command::new("losetup").args(["-d", &self.dev]).status();
+    }
+}
+
+fn drive(dev: &str, mounts: Vec<String>) -> Drive {
+    Drive {
+        id: dev.into(),
+        name: "Loop".into(),
+        serial: None,
+        size: 64 * MB,
+        bus: Bus::Usb,
+        removable: true,
+        mounts,
+        rejection: None,
+    }
+}
+
+#[test]
+#[ignore]
+fn mounted_loop_device_is_unmounted_written_and_verified() {
+    if !enabled() {
+        return;
+    }
+    let dir = std::env::temp_dir().join(format!("bf-loop-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(dir.join("mnt")).unwrap();
+    let backing = dir.join("disk.img");
+    sh("truncate", &["-s", "64M", backing.to_str().unwrap()]);
+    let lo = Loop {
+        dev: sh("losetup", &["-f", "--show", backing.to_str().unwrap()]),
+    };
+
+    // Wie ein Stick, der im Dateimanager geöffnet ist: Dateisystem + eingehängt.
+    sh("mkfs.ext4", &["-q", &lo.dev]);
+    let mnt = dir.join("mnt");
+    sh("mount", &[&lo.dev, mnt.to_str().unwrap()]);
+    std::fs::write(mnt.join("alte-datei.txt"), "weg damit").unwrap();
+
+    // Image: 20 MB + krumme Bytes
+    let content: Vec<u8> = (0..(20 * MB as usize + 333))
+        .map(|i| (i * 7 % 251) as u8)
+        .collect();
+    let image = dir.join("x.iso");
+    std::fs::write(&image, &content).unwrap();
+    let mut h = Hasher::new(HashAlgorithm::Sha256);
+    h.update(&content);
+    let job = FlashJob {
+        image,
+        compression: Compression::None,
+        algorithm: HashAlgorithm::Sha256,
+        expected_hash: h.finish_hex(),
+    };
+
+    let no = AtomicBool::new(false);
+    verify_image(&job, &no, &mut |_| {}).unwrap();
+    let mut dev = open(&drive(&lo.dev, vec![mnt.to_string_lossy().into_owned()])).expect("öffnen");
+    // Ausgehängt?
+    let mounts = std::fs::read_to_string("/proc/self/mounts").unwrap();
+    assert!(!mounts.contains(&lo.dev), "noch eingehängt");
+
+    let report = write_and_verify(&mut dev, 64 * MB, &job, &no, &mut |_| {}).expect("schreiben");
+    finish(dev);
+    assert_eq!(report.written, content.len() as u64);
+
+    let disk = std::fs::read(&backing).unwrap();
+    assert_eq!(&disk[..content.len()], &content[..], "Daten auf dem Gerät");
+}
+
+#[test]
+#[ignore]
+fn device_in_use_is_refused() {
+    if !enabled() {
+        return;
+    }
+    let dir = std::env::temp_dir().join(format!("bf-loop-busy-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let backing = dir.join("disk.img");
+    sh("truncate", &["-s", "64M", backing.to_str().unwrap()]);
+    let lo = Loop {
+        dev: sh("losetup", &["-f", "--show", backing.to_str().unwrap()]),
+    };
+
+    // Ein anderes Programm hält das Gerät exklusiv offen.
+    let _holder = std::fs::OpenOptions::new()
+        .read(true)
+        .custom_flags(libc::O_EXCL)
+        .open(Path::new(&lo.dev))
+        .unwrap();
+    match open(&drive(&lo.dev, vec![])) {
+        Err(FlashError::Busy(_)) => {}
+        other => panic!("erwartet Busy, war {:?}", other.err()),
+    }
+}
