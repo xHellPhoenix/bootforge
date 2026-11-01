@@ -397,7 +397,8 @@
             "signs": "checksum_file",
             "url": "{filename}.sha256.asc",
             "fingerprints": ["AD485664E901B867051AB15F35A2F86E29B700A4"],
-            "keyring_url": "https://download.opensuse.org/tumbleweed/repo/oss/repodata/repomd.xml.key"
+            "keyring_url": "https://download.opensuse.org/tumbleweed/repo/oss/repodata/repomd.xml.key",
+            "allow_v3": true
           }
         },
         {
@@ -426,7 +427,8 @@
             "signs": "checksum_file",
             "url": "{filename}.sha512.asc",
             "fingerprints": ["AD485664E901B867051AB15F35A2F86E29B700A4"],
-            "keyring_url": "https://download.opensuse.org/tumbleweed/repo/oss/repodata/repomd.xml.key"
+            "keyring_url": "https://download.opensuse.org/tumbleweed/repo/oss/repodata/repomd.xml.key",
+            "allow_v3": true
           }
         }
       ]

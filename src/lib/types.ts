@@ -99,3 +99,30 @@ export interface AppInfo {
   os: string;
   arch: string;
 }
+
+// --- Phase 3: Beschaffen + Prüfen ---------------------------------------------------------------
+
+export type Stage = "checksum" | "signature" | "cache_check" | "download" | "verify" | "image_signature";
+
+export interface Signer {
+  fingerprint: string;
+  user_id: string | null;
+}
+
+/** Ereignisse von `prepare_image` (Rust: `acquire::AcquireEvent`). */
+export type AcquireEvent =
+  | { event: "stage"; stage: Stage }
+  | { event: "progress"; stage: Stage; done: number; total: number | null; bytes_per_sec: number }
+  | { event: "signed"; signer: Signer };
+
+/** Ergebnis von `prepare_image` (Rust: `acquire::Acquired`). */
+export interface Acquired {
+  path: string;
+  filename: string;
+  size: number;
+  algorithm: HashAlgorithm;
+  hash: string;
+  signer: Signer | null;
+  assurance: "signed" | "checksum" | "weak";
+  from_cache: boolean;
+}

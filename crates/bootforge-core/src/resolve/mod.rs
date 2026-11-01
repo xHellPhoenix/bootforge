@@ -75,6 +75,7 @@ pub struct ResolvedSignature {
     pub url: Option<Url>,
     pub fingerprints: Vec<String>,
     pub keyring_url: Option<Url>,
+    pub allow_v3: bool,
 }
 
 /// Was beim Ermitteln schiefgehen kann.
@@ -192,6 +193,7 @@ pub async fn resolve<F: Fetcher>(f: &F, variant: &Variant) -> Result<ResolvedIma
                 .transpose()?,
             fingerprints: s.fingerprints.clone(),
             keyring_url: s.keyring_url.as_deref().map(parse_https).transpose()?,
+            allow_v3: s.allow_v3,
         }),
     };
 

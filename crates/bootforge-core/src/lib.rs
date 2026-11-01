@@ -6,6 +6,9 @@
 //! - der spätere Flash-Helper (läuft unter Linux mit Root-Rechten) kann dieselben
 //!   Sicherheitsprüfungen nutzen, ohne die ganze GUI mitzuschleppen.
 
+pub mod acquire;
 pub mod catalog;
+pub mod download;
 pub mod http;
 pub mod resolve;
+pub mod verify;

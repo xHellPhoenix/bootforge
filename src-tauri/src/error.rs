@@ -1,3 +1,5 @@
+use bootforge_core::acquire::AcquireError;
+use bootforge_core::download::DownloadError;
 use bootforge_core::http::FetchError;
 use bootforge_core::resolve::ResolveError;
 use serde::Serialize;
@@ -23,8 +25,40 @@ pub enum AppError {
     NotSupportedYet(String),
     #[error("Unsichere Quelle: {0}")]
     Insecure(String),
+    #[error("Es läuft bereits ein Download")]
+    Busy,
+    #[error("abgebrochen")]
+    Cancelled,
+    #[error("Prüfsumme stimmt nicht: {0}")]
+    ChecksumMismatch(String),
+    #[error("Signatur ungültig: {0}")]
+    SignatureInvalid(String),
+    #[error("Prüfsumme fehlt: {0}")]
+    ChecksumMissing(String),
+    #[error("Dateifehler: {0}")]
+    Disk(String),
     #[error("{0}")]
     Internal(String),
+}
+
+impl From<AcquireError> for AppError {
+    fn from(e: AcquireError) -> Self {
+        let detail = e.to_string();
+        match e {
+            AcquireError::Cancelled => AppError::Cancelled,
+            AcquireError::ChecksumMismatch { .. } => AppError::ChecksumMismatch(detail),
+            AcquireError::Gpg(_) | AcquireError::MissingKeyring => {
+                AppError::SignatureInvalid(detail)
+            }
+            AcquireError::ChecksumNotListed { .. } => AppError::ChecksumMissing(detail),
+            AcquireError::BadFilename(_) => AppError::Insecure(detail),
+            AcquireError::Fetch(f) | AcquireError::Download(DownloadError::Fetch(f)) => {
+                ResolveError::Fetch(f).into()
+            }
+            AcquireError::Download(DownloadError::Io(_)) => AppError::Disk(detail),
+            AcquireError::Download(_) => AppError::Network(detail),
+        }
+    }
 }
 
 impl From<ResolveError> for AppError {

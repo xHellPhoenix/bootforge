@@ -65,6 +65,9 @@ Relative URLs beziehen sich auf das Verzeichnis des Images. Platzhalter: `{filen
 }
 ```
 
+Nur wenn der Hersteller noch das veraltete v3-Signaturformat verwendet (openSUSE), zusätzlich
+`"allow_v3": true` setzen. Das erzeugt bewusst eine Warnung.
+
 **Die Fingerprints sind der Vertrauensanker.** Selbst wenn jemand eine ISO samt Prüfsummendatei
 austauscht, kann er ohne den privaten Schlüssel des Herstellers keine gültige Signatur erzeugen.
 Ein neuer Fingerprint darf deshalb nur eingetragen werden, wenn er von einer offiziellen Seite des

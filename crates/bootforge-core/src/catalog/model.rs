@@ -313,6 +313,10 @@ pub struct Signature {
     /// Die geladenen Schlüssel werden trotzdem gegen `fingerprints` geprüft.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub keyring_url: Option<String>,
+    /// Alte v3-Signaturpakete akzeptieren (Standard: nein). Nur setzen, wenn der Hersteller
+    /// nichts anderes liefert (openSUSE). Erzeugt eine Warnung bei der Katalogprüfung.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub allow_v3: bool,
 }
 
 /// Art der GPG-Signatur.

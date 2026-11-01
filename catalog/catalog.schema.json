@@ -280,6 +280,10 @@
       "description": "GPG-Signatur.",
       "type": "object",
       "properties": {
+        "allow_v3": {
+          "description": "Alte v3-Signaturpakete akzeptieren (Standard: nein). Nur setzen, wenn der Hersteller\nnichts anderes liefert (openSUSE). Erzeugt eine Warnung bei der Katalogprüfung.",
+          "type": "boolean"
+        },
         "fingerprints": {
           "description": "Erlaubte Signaturschlüssel als 40-stellige Fingerprints (ohne Leerzeichen).\nNur Signaturen von genau diesen Schlüsseln werden akzeptiert.",
           "type": "array",
