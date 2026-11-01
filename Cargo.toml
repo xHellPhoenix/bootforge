@@ -21,3 +21,8 @@ thiserror = "2"
 regex = "1"
 url = { version = "2", features = ["serde"] }
 schemars = "1"
+# HTTP-Client. Standard-TLS ist in 0.13 rustls (in Rust geschrieben) statt OpenSSL:
+# gleiches Verhalten unter Windows und Linux, keine OpenSSL-Version, die zur Distro passen muss.
+reqwest = { version = "0.13", features = ["json"] }
+tokio = { version = "1", features = ["fs", "macros", "rt-multi-thread", "sync", "time"] }
+percent-encoding = "2"

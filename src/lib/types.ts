@@ -49,11 +49,44 @@ export interface CatalogIssue {
   message: string;
 }
 
+/** Antwort von `get_catalog` (Rust: `catalog::load::Loaded`). */
 export interface CatalogResponse {
   catalog: Catalog;
   origin: "bundled" | "remote" | "cache";
   warnings: CatalogIssue[];
+  /** Warum nicht der Online-Katalog genutzt wird. */
+  fallback_reason: string | null;
 }
+
+export type HashAlgorithm = "sha256" | "sha512" | "md5";
+
+/** Antwort von `resolve_latest` (Rust: `resolve::ResolvedImage`). */
+export interface ResolvedImage {
+  variant_id: string;
+  version: string;
+  build?: string;
+  filename: string;
+  url: string;
+  size: number | null;
+  checksum:
+    | { type: "file"; url: string; algorithm: HashAlgorithm }
+    | { type: "value"; value: string; algorithm: HashAlgorithm };
+  signature?: {
+    kind: "gpg_detached" | "gpg_clearsigned";
+    signs: "checksum_file" | "image";
+    url: string | null;
+    fingerprints: string[];
+    keyring_url: string | null;
+  };
+  compression: "none" | "gzip" | "xz" | "zstd";
+  flash_mode: FlashMode;
+}
+
+/** Zustand der Versionsermittlung pro Variante in der GUI. */
+export type ResolveState =
+  | { status: "loading" }
+  | { status: "ok"; image: ResolvedImage }
+  | { status: "error"; error: AppError };
 
 /** Fehler aus dem Rust-Backend (siehe src-tauri/src/error.rs). */
 export interface AppError {

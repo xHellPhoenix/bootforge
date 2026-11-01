@@ -27,5 +27,22 @@
   "catalog.updated": "As of {date}",
   "error.catalog_invalid": "The catalog is invalid.",
   "error.unknown": "Unknown error.",
-  "error.details": "Details"
+  "error.details": "Details",
+  "catalog.fallback.cache": "Online catalog unreachable – using the last saved version.",
+  "catalog.fallback.bundled": "Online catalog unreachable – using the built-in version, which may be outdated.",
+  "resolve.loading": "Looking up latest version …",
+  "resolve.latest": "Latest version",
+  "resolve.file": "File",
+  "resolve.size": "Size",
+  "resolve.source": "Source",
+  "resolve.retry": "Retry",
+  "resolve.size_unknown": "unknown",
+  "error.network": "Cannot reach the server.",
+  "error.server": "The server responded with an error.",
+  "error.no_match": "The latest version could not be found. The download page has probably changed – the catalog needs an update.",
+  "error.not_supported_yet": "Will be supported in a later version.",
+  "error.insecure": "The source is not secure (no HTTPS) and was blocked.",
+  "error.catalog_not_loaded": "The catalog has not been loaded yet.",
+  "error.unknown_variant": "This variant does not exist in the catalog.",
+  "error.internal": "Internal error."
 }

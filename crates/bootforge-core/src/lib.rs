@@ -7,3 +7,5 @@
 //!   Sicherheitsprüfungen nutzen, ohne die ganze GUI mitzuschleppen.
 
 pub mod catalog;
+pub mod http;
+pub mod resolve;

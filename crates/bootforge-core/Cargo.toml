@@ -13,3 +13,14 @@ thiserror.workspace = true
 regex.workspace = true
 url.workspace = true
 schemars.workspace = true
+reqwest.workspace = true
+tokio.workspace = true
+percent-encoding.workspace = true
+
+[features]
+# Stellt `http::fake::FakeFetcher` auch außerhalb von Unit-Tests bereit (Integrationstests).
+test-util = []
+
+[dev-dependencies]
+# Trick: das eigene Crate nochmal mit `test-util` einbinden, damit tests/ den Fake nutzen kann.
+bootforge-core = { path = ".", features = ["test-util"] }
