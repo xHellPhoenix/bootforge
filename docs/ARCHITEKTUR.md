@@ -80,13 +80,18 @@ Fehler gehen als `{ code, detail }` an die GUI. Die GUI übersetzt den `code`, u
 aufklappbar für Techniker. So bleibt die Mehrsprachigkeit im Frontend, und das Backend muss keine
 Sprache kennen.
 
+### E10 – Katalog in eigenem Repo
+Der Katalog liegt in [`xHellPhoenix/bootforge-catalog`](https://github.com/xHellPhoenix/bootforge-catalog),
+die App in `xHellPhoenix/bootforge`. **Warum:** Ein neuer Distro-Eintrag oder eine korrigierte Regex
+soll sofort bei allen Nutzern ankommen, ohne neue App-Version. Und wer nur den Katalog pflegt, braucht
+keinen Zugriff auf den App-Code. Die Kopie in `catalog/` wird beim Bauen als Fallback eingebettet.
+
 ### E9 – Eigene kleine i18n statt Bibliothek
 `src/lib/i18n.svelte.ts` umfasst ~30 Zeilen: flache JSON-Dateien pro Sprache, Platzhalter `{name}`,
 Fallback auf Deutsch. Für zwei Sprachen reicht das. Wird es mehr (Plural-Regeln, Datumsformate),
 kann man auf eine Bibliothek wie `svelte-i18n` wechseln.
 
 ## Offene Punkte für spätere Phasen
-- Katalog-Repo und URL festlegen (Phase 2).
 - TypeScript-Typen werden noch von Hand gepflegt (`src/lib/types.ts`). Später eventuell mit
   `specta`/`ts-rs` generieren.
 - Windows: `requireAdministrator`-Manifest in `build.rs` (Phase 5).

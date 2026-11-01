@@ -15,7 +15,7 @@ und schreibt sie auf den Stick.
 | `crates/bootforge-core/` | Die eigentliche Logik in Rust, ohne GUI und testbar |
 | `src-tauri/` | Tauri-v2-App: dünne Schicht zwischen GUI und Core |
 | `src/` | GUI (Svelte 5 + TypeScript) |
-| `catalog/catalog.json` | Distro-Katalog (wird auch als Offline-Fallback eingebaut) |
+| `catalog/catalog.json` | Eingebauter Offline-Fallback des Katalogs. Der aktuelle Katalog liegt in [bootforge-catalog](https://github.com/xHellPhoenix/bootforge-catalog) |
 | `catalog/catalog.schema.json` | JSON-Schema, **generiert** aus dem Rust-Code |
 | `docs/` | [Architektur & Entscheidungen](docs/ARCHITEKTUR.md), [Katalogformat](docs/KATALOG.md) |
 
