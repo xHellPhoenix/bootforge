@@ -119,5 +119,6 @@
   "error.not_elevated": "Zum Schreiben braucht BootForge Administratorrechte. Starte es per Rechtsklick → „Als Administrator ausführen“.",
   "error.auth_cancelled": "Die Anmeldung wurde abgebrochen – es wurde nichts verändert.",
   "error.helper_missing": "Das Hilfsprogramm zum Schreiben fehlt (Installation unvollständig).",
-  "error.flash_cancelled": "Abgebrochen. Der Stick ist jetzt leer und muss neu beschrieben werden."
+  "error.flash_cancelled": "Abgebrochen. Der Stick ist jetzt leer und muss neu beschrieben werden.",
+  "forge.windows_format_hint": "Windows fragt jetzt evtl., ob der Datenträger formatiert werden soll – bitte „Abbrechen“ klicken! Windows kann das Dateisystem auf dem Stick nur nicht lesen; Formatieren würde ihn wieder löschen."
 }

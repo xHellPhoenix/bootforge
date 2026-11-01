@@ -119,5 +119,6 @@
   "error.not_elevated": "BootForge needs administrator rights to write. Start it via right-click → “Run as administrator”.",
   "error.auth_cancelled": "Authentication was cancelled – nothing was changed.",
   "error.helper_missing": "The helper program for writing is missing (incomplete installation).",
-  "error.flash_cancelled": "Cancelled. The drive is now empty and must be written again."
+  "error.flash_cancelled": "Cancelled. The drive is now empty and must be written again.",
+  "forge.windows_format_hint": "Windows may now ask whether to format the drive – please click “Cancel”! Windows just can't read the file system on the drive; formatting would erase it again."
 }

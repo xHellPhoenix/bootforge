@@ -49,7 +49,8 @@ richtige App mit Oberfläche und braucht zusätzlich Node.js.
 ```
 
 Danach zeigt Windows evtl. einen neuen Datenträger oder meldet „Laufwerk muss formatiert werden“.
-**Nicht formatieren!** Das ist normal: Windows versteht das Linux-Dateisystem auf dem Stick nicht.
+**Auf „Abbrechen“ klicken, nicht formatieren!** Das ist normal: Windows versteht das Linux-Dateisystem
+auf dem Stick nicht. Die App weist nach dem Schreiben unter Windows auch selbst darauf hin.
 
 ## Weg B: mit Oberfläche
 

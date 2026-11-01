@@ -13,6 +13,8 @@
       ? (job.progress.total - job.progress.done) / job.progress.bps
       : null,
   );
+  // Nur unter Windows erscheint nach dem Schreiben die irreführende „Formatieren?“-Abfrage.
+  const isWindows = navigator.userAgent.includes("Windows");
   const signerName = $derived(job.signer?.user_id?.replace(/\s*<.*>$/, "") ?? job.signer?.fingerprint ?? "");
 </script>
 
@@ -57,6 +59,7 @@
     <div class="result forged">
       <strong>✓ {t("forge.done")}</strong>
       <p>{t("forge.done_text", { size: formatBytes(f.written, i18n.locale) })}</p>
+      {#if isWindows}<p class="hint">⚠ {t("forge.windows_format_hint")}</p>{/if}
       <p class="dim">{t(`prepare.assurance.${r.assurance}`)}</p>
       <dl>
         <dt>{t("forge.written_hash")}</dt>
@@ -224,6 +227,10 @@
   }
   .result.forged {
     border-width: 2px;
+  }
+  .result .hint {
+    color: var(--warn);
+    font-weight: 600;
   }
   .result.forged strong {
     font-size: 16px;
