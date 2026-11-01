@@ -176,13 +176,13 @@ impl Validator {
                     ("checksum", fields.checksum.as_ref()),
                     ("size", fields.size.as_ref()),
                 ]) {
-                    if let Some(p) = p {
-                        if !p.starts_with('/') {
-                            self.err(
-                                format!("{sloc}/fields/{name}"),
-                                "JSON-Pointer muss mit `/` beginnen",
-                            );
-                        }
+                    if let Some(p) = p
+                        && !p.starts_with('/')
+                    {
+                        self.err(
+                            format!("{sloc}/fields/{name}"),
+                            "JSON-Pointer muss mit `/` beginnen",
+                        );
                     }
                 }
             }

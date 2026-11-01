@@ -64,10 +64,10 @@ async fn resolve_cached(
 ) -> Result<ResolvedImage, AppError> {
     if !force {
         let cache = state.resolved.lock().expect("Mutex nicht vergiftet");
-        if let Some((at, img)) = cache.get(&variant_id) {
-            if at.elapsed() < RESOLVE_TTL {
-                return Ok(img.clone());
-            }
+        if let Some((at, img)) = cache.get(&variant_id)
+            && at.elapsed() < RESOLVE_TTL
+        {
+            return Ok(img.clone());
         }
     }
 

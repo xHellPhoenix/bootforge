@@ -143,7 +143,7 @@ unsafe impl Send for AlignedBuf {}
 
 impl AlignedBuf {
     pub fn new(len: usize) -> Self {
-        assert!(len > 0 && len % ALIGN == 0);
+        assert!(len > 0 && len.is_multiple_of(ALIGN));
         let layout = std::alloc::Layout::from_size_align(len, ALIGN).expect("gültiges Layout");
         // SAFETY: Layout hat Größe > 0; Rückgabe wird auf null geprüft.
         let raw = unsafe { std::alloc::alloc_zeroed(layout) };

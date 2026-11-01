@@ -204,9 +204,9 @@ Gerät `/` oder `/home`, gilt das USB-Laufwerk als Systemlaufwerk.
 in Rohdaten (`windows_map.rs`) ist reiner Code und wird auch unter Linux getestet. Eine WMI-Verbindung
 darf den Thread nicht wechseln (COM), deshalb läuft die Erkennung über `spawn_blocking`.
 
-Stolperstein: `wmi` erlaubt `windows-core` in einem Versionsbereich, und Cargo hat eine inkompatible
-Mischung gewählt (0.61 + 0.62). Gelöst im `Cargo.lock`; das CI baut mit `--locked`, damit das nicht
-unbemerkt verloren geht.
+Stolperstein: `wmi` erlaubt `windows`/`windows-core` in einem Versionsbereich, und Cargo hat eine
+inkompatible Mischung gewählt (0.61 + 0.62). Gelöst im `Cargo.lock` (beide auf dieselbe Version wie
+Tauri); das CI baut mit `--locked`, damit das nicht unbemerkt verloren geht.
 
 ### E26 – Aktualisieren per Abfrage alle 2 s
 Solange der Auswahldialog offen ist, wird die Liste alle 2 Sekunden neu eingelesen. Echte
@@ -279,6 +279,12 @@ zum Ende offen, sonst hängt Windows sie sofort wieder ein.
 `[profile.dev.package."*"] opt-level = 2`: Ohne diese Einstellung hasht ein Debug-Build nur ~15 MB/s,
 und ein Test mit einem echten Image dauert Minuten. Der eigene Code bleibt unoptimiert, damit er
 schnell kompiliert und gut zu debuggen ist.
+
+### E35 – `rust-version` bestimmt, welche Paketversionen Cargo wählt
+Mit `resolver = "3"` wählt Cargo nur Paketversionen, die mit der angegebenen Mindest-Rust-Version
+(`rust-version`) funktionieren. Bei `1.85` blieb Tauri deshalb auf 2.11, weil 2.12 Rust 1.90 braucht.
+Die npm-Pakete waren aber schon 2.12, und `tauri dev` meldete einen Versions-Mismatch. Jetzt steht
+dort `1.90`, und Rust- und npm-Seite von Tauri sind wieder auf derselben Minor-Version.
 
 ## Offene Punkte für spätere Phasen
 - **Kompatibilität des Online-Katalogs:** Wegen `deny_unknown_fields` lehnt eine ältere App einen

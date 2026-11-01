@@ -207,13 +207,13 @@ pub async fn download<S: RangeSource>(
     file.sync_all().await?; // wirklich auf die Platte, bevor wir „fertig“ sagen
     drop(file);
 
-    if let Some(total) = opened.total {
-        if done != total {
-            return Err(DownloadError::Incomplete {
-                got: done,
-                expected: total,
-            });
-        }
+    if let Some(total) = opened.total
+        && done != total
+    {
+        return Err(DownloadError::Incomplete {
+            got: done,
+            expected: total,
+        });
     }
     on_progress(Progress {
         done,

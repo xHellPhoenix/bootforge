@@ -28,8 +28,9 @@ sequoia-openpgp = { workspace = true, features = ["crypto-cng"] }
 windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Storage_FileSystem", "Win32_System_IO", "Win32_System_Ioctl", "Win32_Security", "Win32_System_Threading"] }
 # Laufwerkserkennung über die Windows-Verwaltungsschnittstelle WMI
 # ACHTUNG: wmi erlaubt windows/windows-core ">=0.59, <0.63", und Cargo wählt beide unabhängig.
-# Tauri zieht windows 0.61; ohne Festlegung landet windows-core 0.62 dazu → wmi kompiliert nicht.
-# Festgelegt im Cargo.lock mit:  cargo update -p windows-core@0.62.2 --precise 0.61.2
+# Passen sie nicht zusammen (z. B. windows 0.61 + windows-core 0.62), kompiliert wmi nicht.
+# Im Cargo.lock sind beide auf dieselbe Version wie bei Tauri festgelegt (0.62), z. B. mit:
+#   cargo update -p windows@0.61.3 --precise 0.62.2
 # (CI baut mit --locked, damit das nicht unbemerkt verloren geht.)
 wmi = "0.18"
 
