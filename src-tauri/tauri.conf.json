@@ -1,0 +1,41 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "BootForge",
+  "version": "0.1.0",
+  "identifier": "io.github.xhellphoenix.bootforge",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "BootForge",
+        "width": 960,
+        "height": 680,
+        "minWidth": 820,
+        "minHeight": 600,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; connect-src ipc: http://ipc.localhost"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis", "msi", "appimage", "deb"],
+    "category": "Utility",
+    "shortDescription": "USB-Boot-Sticks ohne ISO-Suche",
+    "longDescription": "BootForge lädt die neueste Version einer Linux-Distribution oder von Windows direkt von der offiziellen Quelle, prüft sie und schreibt sie auf einen USB-Stick.",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  }
+}

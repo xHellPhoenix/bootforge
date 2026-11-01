@@ -1,0 +1,23 @@
+# Cargo-Workspace: mehrere Rust-Crates teilen sich ein Cargo.lock und ein target/-Verzeichnis.
+#   crates/bootforge-core  -> die eigentliche Logik (Katalog, Download, Flashen ...), OHNE Tauri
+#   src-tauri              -> die Desktop-App (dünne Schicht: Tauri-Commands + Events)
+# Später kommt noch ein kleiner Flash-Helper dazu (läuft unter Linux via pkexec mit Root-Rechten).
+[workspace]
+resolver = "3"
+members = ["crates/bootforge-core", "src-tauri"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "GPL-3.0-or-later"
+repository = "https://github.com/xHellPhoenix/esx-skin-picker"
+rust-version = "1.85"
+
+[workspace.dependencies]
+bootforge-core = { path = "crates/bootforge-core" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+regex = "1"
+url = { version = "2", features = ["serde"] }
+schemars = "1"

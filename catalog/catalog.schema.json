@@ -1,0 +1,587 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Catalog",
+  "description": "Der komplette Katalog.",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "description": "Optionaler Verweis auf das JSON-Schema (nur für Editoren, wird von der App ignoriert).",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "categories": {
+      "description": "Kategorien für die Filter in der GUI.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Category"
+      }
+    },
+    "distros": {
+      "description": "Alle Distributionen.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Distro"
+      }
+    },
+    "schema_version": {
+      "description": "Version des Katalogformats (aktuell 1).",
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0
+    },
+    "updated": {
+      "description": "Datum der letzten Änderung im Format JJJJ-MM-TT.",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "updated",
+    "categories",
+    "distros"
+  ],
+  "$defs": {
+    "Arch": {
+      "description": "CPU-Architektur.",
+      "type": "string",
+      "enum": [
+        "x86_64",
+        "aarch64"
+      ]
+    },
+    "Category": {
+      "description": "Eine Kategorie (Filter-Chip in der GUI).",
+      "type": "object",
+      "properties": {
+        "id": {
+          "description": "Eindeutige ID, z. B. `desktop`.",
+          "type": "string"
+        },
+        "name": {
+          "description": "Anzeigename.",
+          "$ref": "#/$defs/LocalizedText"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name"
+      ]
+    },
+    "Checksum": {
+      "description": "Herkunft der Prüfsumme.",
+      "oneOf": [
+        {
+          "description": "Eine Datei mit Prüfsummen herunterladen. Unterstützt werden GNU-Format\n(`<hash>  <datei>` bzw. `<hash> *<datei>`), BSD-Format (`SHA256 (<datei>) = <hash>`)\nund Dateien, die nur den Hash enthalten. PGP-Clearsign-Rahmen werden entfernt.\n\nGenau eins von `url` oder `match` angeben.",
+          "type": "object",
+          "properties": {
+            "algorithm": {
+              "description": "Hash-Algorithmus.",
+              "$ref": "#/$defs/HashAlgorithm"
+            },
+            "match": {
+              "description": "Alternativ: Regex, die die Datei im Listing des Image-Verzeichnisses findet\n(z. B. Fedora: `-CHECKSUM$`).",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "type": {
+              "type": "string",
+              "const": "file"
+            },
+            "url": {
+              "description": "URL der Datei, relativ zum Verzeichnis des Images oder absolut (HTTPS).\nPlatzhalter: `{filename}` (Dateiname des Images), `{version}`.",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "algorithm"
+          ]
+        },
+        {
+          "description": "Die Quelle (JSON-API, Microsoft) liefert die Prüfsumme direkt mit.",
+          "type": "object",
+          "properties": {
+            "algorithm": {
+              "description": "Hash-Algorithmus.",
+              "$ref": "#/$defs/HashAlgorithm"
+            },
+            "type": {
+              "type": "string",
+              "const": "from_source"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "algorithm"
+          ]
+        }
+      ]
+    },
+    "Compression": {
+      "description": "Komprimierung des heruntergeladenen Images. Wird beim Flashen „im Fluss“ entpackt.",
+      "type": "string",
+      "enum": [
+        "none",
+        "gzip",
+        "xz",
+        "zstd"
+      ]
+    },
+    "Distro": {
+      "description": "Eine Distribution, z. B. „Ubuntu“. Enthält eine oder mehrere Varianten.",
+      "type": "object",
+      "properties": {
+        "description": {
+          "description": "Kurzbeschreibung.",
+          "$ref": "#/$defs/LocalizedText"
+        },
+        "homepage": {
+          "description": "Offizielle Website (HTTPS).",
+          "type": "string"
+        },
+        "id": {
+          "description": "Eindeutige ID, z. B. `ubuntu`.",
+          "type": "string"
+        },
+        "name": {
+          "description": "Anzeigename (wird nicht übersetzt).",
+          "type": "string"
+        },
+        "variants": {
+          "description": "Varianten (Desktop, Server, Netinst, …).",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Variant"
+          }
+        },
+        "vendor": {
+          "description": "Herausgeber, z. B. `Canonical`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "homepage",
+        "description",
+        "variants"
+      ]
+    },
+    "FlashMode": {
+      "description": "Flash-Modus.",
+      "oneOf": [
+        {
+          "description": "Image 1:1 auf den Stick schreiben (Linux-Hybrid-ISOs, `.img`). Danach Zurücklesen + Vergleichen.",
+          "type": "string",
+          "const": "raw"
+        },
+        {
+          "description": "Windows-Installationsmedium: GPT + FAT32 anlegen, Dateien kopieren, `install.wim` ggf. aufteilen.",
+          "type": "string",
+          "const": "windows"
+        }
+      ]
+    },
+    "HashAlgorithm": {
+      "description": "Hash-Algorithmus.",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "sha256",
+            "sha512"
+          ]
+        },
+        {
+          "description": "Nur Schutz gegen kaputte Downloads, NICHT gegen Manipulation. Nur nutzen, wenn es nichts anderes gibt.",
+          "type": "string",
+          "const": "md5"
+        }
+      ]
+    },
+    "JsonFields": {
+      "description": "JSON-Pointer in eine API-Antwort, z. B. `/url`.",
+      "type": "object",
+      "properties": {
+        "build": {
+          "description": "Optionale Build-Nummer (wird an die Version angehängt).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "checksum": {
+          "description": "Prüfsumme (nötig, wenn `checksum.type` = `from_source`).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "size": {
+          "description": "Dateigröße in Bytes.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "url": {
+          "description": "Download-URL des Images.",
+          "type": "string"
+        },
+        "version": {
+          "description": "Versionsnummer.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "url",
+        "version"
+      ]
+    },
+    "LocalizedText": {
+      "description": "Übersetzter Text: Sprachcode (`de`, `en`, …) → Text. `de` ist Pflicht.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "Select": {
+      "description": "Auswahlregel bei mehreren Treffern.",
+      "oneOf": [
+        {
+          "description": "Höchste Versionsnummer (numerischer Vergleich der Zahlenblöcke: `24.10` > `24.4`).\nIst der höchste Treffer eine Sackgasse (z. B. leeres Verzeichnis), wird der nächste probiert.",
+          "type": "string",
+          "const": "highest_version"
+        },
+        {
+          "description": "Alphabetisch letzter Treffer.",
+          "type": "string",
+          "const": "lexical"
+        }
+      ]
+    },
+    "Signature": {
+      "description": "GPG-Signatur.",
+      "type": "object",
+      "properties": {
+        "fingerprints": {
+          "description": "Erlaubte Signaturschlüssel als 40-stellige Fingerprints (ohne Leerzeichen).\nNur Signaturen von genau diesen Schlüsseln werden akzeptiert.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "keyring_url": {
+          "description": "HTTPS-URL, von der die öffentlichen Schlüssel geladen werden können.\nDie geladenen Schlüssel werden trotzdem gegen `fingerprints` geprüft.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "signs": {
+          "description": "Was signiert ist.",
+          "$ref": "#/$defs/SignedTarget"
+        },
+        "type": {
+          "description": "Art der Signatur.",
+          "$ref": "#/$defs/SignatureKind"
+        },
+        "url": {
+          "description": "URL der Signaturdatei (bei `gpg_detached` Pflicht), relativ oder absolut, Platzhalter wie bei `checksum`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "signs",
+        "fingerprints"
+      ]
+    },
+    "SignatureKind": {
+      "description": "Art der GPG-Signatur.",
+      "oneOf": [
+        {
+          "description": "Separate Signaturdatei (`.gpg`, `.sig`, `.asc`, `.sign`).",
+          "type": "string",
+          "const": "gpg_detached"
+        },
+        {
+          "description": "Die Prüfsummendatei ist selbst signiert (`-----BEGIN PGP SIGNED MESSAGE-----`).",
+          "type": "string",
+          "const": "gpg_clearsigned"
+        }
+      ]
+    },
+    "SignedTarget": {
+      "description": "Was von der Signatur abgedeckt wird.",
+      "oneOf": [
+        {
+          "description": "Die Prüfsummendatei (üblich: Ubuntu, Debian, Mint, Fedora).",
+          "type": "string",
+          "const": "checksum_file"
+        },
+        {
+          "description": "Das Image direkt (Arch, Proxmox).",
+          "type": "string",
+          "const": "image"
+        }
+      ]
+    },
+    "Source": {
+      "description": "Strategie, mit der die neueste Version ermittelt wird.\n\nAlle URLs müssen HTTPS sein.",
+      "oneOf": [
+        {
+          "description": "HTML-Verzeichnislisting(s) durchsuchen. Ausgehend von `base_url` wird jeder Schritt\nnacheinander angewendet; der letzte Schritt muss die Image-Datei finden.\n\nVor dem Vergleich werden Links normalisiert: Query/Fragment entfernt, führendes `./`\nentfernt, URL-dekodiert. Verzeichnisse behalten ihren abschließenden `/`.",
+          "type": "object",
+          "properties": {
+            "base_url": {
+              "description": "Start-URL (HTTPS, sollte mit `/` enden).",
+              "type": "string"
+            },
+            "steps": {
+              "description": "Navigationsschritte.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Step"
+              }
+            },
+            "type": {
+              "type": "string",
+              "const": "directory_listing"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "base_url",
+            "steps"
+          ]
+        },
+        {
+          "description": "Eine JSON-API abfragen (z. B. Pop!_OS). Felder werden per JSON-Pointer (RFC 6901) gelesen.",
+          "type": "object",
+          "properties": {
+            "fields": {
+              "description": "Wo in der Antwort welche Information steht.",
+              "$ref": "#/$defs/JsonFields"
+            },
+            "type": {
+              "type": "string",
+              "const": "json_api"
+            },
+            "url": {
+              "description": "API-URL (HTTPS).",
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "url",
+            "fields"
+          ]
+        },
+        {
+          "description": "Neuestes Release eines GitHub-Repos.",
+          "type": "object",
+          "properties": {
+            "asset_pattern": {
+              "description": "Regex für den Namen des Release-Assets.",
+              "type": "string"
+            },
+            "include_prereleases": {
+              "description": "Auch Vorabversionen berücksichtigen?",
+              "type": "boolean",
+              "default": false
+            },
+            "repo": {
+              "description": "`besitzer/repo`",
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "github_release"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "repo",
+            "asset_pattern"
+          ]
+        },
+        {
+          "description": "Offizieller Microsoft-Download (Windows). Sprache wird in der App gewählt.",
+          "type": "object",
+          "properties": {
+            "product": {
+              "description": "Produkt.",
+              "$ref": "#/$defs/WindowsProduct"
+            },
+            "type": {
+              "type": "string",
+              "const": "microsoft"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "product"
+          ]
+        }
+      ]
+    },
+    "Step": {
+      "description": "Ein Schritt in einem Verzeichnislisting.",
+      "anyOf": [
+        {
+          "description": "Festen Unterpfad anhängen, z. B. `Workstation/x86_64/iso/`.",
+          "type": "object",
+          "properties": {
+            "path": {
+              "description": "Relativer Pfad.",
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "path"
+          ]
+        },
+        {
+          "description": "Alle Links des aktuellen Listings gegen eine Regex prüfen und einen Treffer auswählen.\nEine benannte Gruppe `(?P<version>…)` liefert die Versionsnummer.",
+          "type": "object",
+          "properties": {
+            "match": {
+              "description": "Regex (Rust-Syntax), wird gegen den ganzen normalisierten Link geprüft – bitte mit `^…$`.",
+              "type": "string"
+            },
+            "select": {
+              "description": "Wie unter mehreren Treffern gewählt wird.",
+              "$ref": "#/$defs/Select"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "match"
+          ]
+        }
+      ]
+    },
+    "Variant": {
+      "description": "Eine konkrete, herunterladbare Variante einer Distribution.",
+      "type": "object",
+      "properties": {
+        "arch": {
+          "description": "CPU-Architektur des Images.",
+          "$ref": "#/$defs/Arch"
+        },
+        "categories": {
+          "description": "IDs der Kategorien, in denen die Variante erscheint.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "checksum": {
+          "description": "Woher die Prüfsumme kommt. Pflicht: ohne Prüfsumme wird nie geflasht.",
+          "$ref": "#/$defs/Checksum"
+        },
+        "compression": {
+          "description": "Ist das heruntergeladene Image komprimiert? (z. B. Batocera: `.img.gz`)",
+          "$ref": "#/$defs/Compression"
+        },
+        "description": {
+          "description": "Beschreibung für die GUI.",
+          "$ref": "#/$defs/LocalizedText"
+        },
+        "flash_mode": {
+          "description": "Wie das Image auf den Stick kommt.",
+          "$ref": "#/$defs/FlashMode"
+        },
+        "id": {
+          "description": "Katalogweit eindeutige ID, z. B. `ubuntu-desktop-lts`.",
+          "type": "string"
+        },
+        "min_usb_gb": {
+          "description": "Empfohlene Mindestgröße des USB-Sticks in GB.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0
+        },
+        "name": {
+          "description": "Anzeigename, z. B. „Desktop (LTS)“.",
+          "$ref": "#/$defs/LocalizedText"
+        },
+        "notes": {
+          "description": "Optionaler Hinweis, der in der GUI angezeigt wird.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LocalizedText"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "signature": {
+          "description": "Optionale GPG-Signatur (über die Prüfsummen-Datei oder das Image selbst).",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signature"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source": {
+          "description": "Wie die neueste Version gefunden wird.",
+          "$ref": "#/$defs/Source"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "description",
+        "categories",
+        "arch",
+        "flash_mode",
+        "source",
+        "checksum"
+      ]
+    },
+    "WindowsProduct": {
+      "description": "Windows-Produkte.",
+      "type": "string",
+      "enum": [
+        "windows11",
+        "windows10"
+      ]
+    }
+  }
+}

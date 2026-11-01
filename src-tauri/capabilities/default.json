@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Rechte des Hauptfensters. Bewusst minimal: kein Dateisystem-, Shell- oder HTTP-Zugriff aus dem Frontend – alles Kritische läuft im Rust-Backend.",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}

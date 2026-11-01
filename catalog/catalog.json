@@ -1,0 +1,624 @@
+{
+  "$schema": "./catalog.schema.json",
+  "schema_version": 1,
+  "updated": "2026-11-01",
+  "categories": [
+    { "id": "desktop", "name": { "de": "Desktop", "en": "Desktop" } },
+    { "id": "server", "name": { "de": "Server", "en": "Server" } },
+    { "id": "homelab", "name": { "de": "Homelab", "en": "Homelab" } },
+    { "id": "gaming", "name": { "de": "Gaming", "en": "Gaming" } },
+    { "id": "windows", "name": { "de": "Windows", "en": "Windows" } }
+  ],
+  "distros": [
+    {
+      "id": "ubuntu",
+      "name": "Ubuntu",
+      "vendor": "Canonical",
+      "homepage": "https://ubuntu.com",
+      "description": {
+        "de": "Die bekannteste Linux-Distribution – einsteigerfreundlich und weit verbreitet.",
+        "en": "The best-known Linux distribution – beginner-friendly and widely used."
+      },
+      "variants": [
+        {
+          "id": "ubuntu-desktop-lts",
+          "name": { "de": "Desktop (LTS)", "en": "Desktop (LTS)" },
+          "description": {
+            "de": "Langzeitversion mit 5 Jahren Updates. Empfohlen für die meisten.",
+            "en": "Long-term support release with 5 years of updates. Recommended for most users."
+          },
+          "categories": ["desktop"],
+          "arch": "x86_64",
+          "flash_mode": "raw",
+          "min_usb_gb": 8,
+          "source": {
+            "type": "directory_listing",
+            "base_url": "https://releases.ubuntu.com/",
+            "steps": [
+              { "match": "^(?P<version>\\d*[02468]\\.04)/$" },
+              { "match": "^ubuntu-(?P<version>\\d+\\.04(?:\\.\\d+)?)-desktop-amd64\\.iso$" }
+            ]
+          },
+          "checksum": { "type": "file", "url": "SHA256SUMS", "algorithm": "sha256" },
+          "signature": {
+            "type": "gpg_detached",
+            "signs": "checksum_file",
+            "url": "SHA256SUMS.gpg",
+            "fingerprints": ["843938DF228D22F7B3742BC0D94AA3F0EFE21092"],
+            "keyring_url": "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x843938DF228D22F7B3742BC0D94AA3F0EFE21092"
+          }
+        },
+        {
+          "id": "ubuntu-desktop-latest",
+          "name": { "de": "Desktop (aktuellste)", "en": "Desktop (latest)" },
+          "description": {
+            "de": "Neueste Zwischenversion mit aktuelleren Paketen, aber nur 9 Monaten Support.",
+            "en": "Latest interim release with newer packages but only 9 months of support."
+          },
+          "categories": ["desktop"],
+          "arch": "x86_64",
+          "flash_mode": "raw",
+          "min_usb_gb": 8,
+          "source": {
+            "type": "directory_listing",
+            "base_url": "https://releases.ubuntu.com/",
+            "steps": [
+              { "match": "^(?P<version>\\d+\\.(?:04|10))/$" },
+              { "match": "^ubuntu-(?P<version>\\d+\\.(?:04|10)(?:\\.\\d+)?)-desktop-amd64\\.iso$" }
+            ]
+          },
+          "checksum": { "type": "file", "url": "SHA256SUMS", "algorithm": "sha256" },
+          "signature": {
+            "type": "gpg_detached",
+            "signs": "checksum_file",
+            "url": "SHA256SUMS.gpg",
+            "fingerprints": ["843938DF228D22F7B3742BC0D94AA3F0EFE21092"],
+            "keyring_url": "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x843938DF228D22F7B3742BC0D94AA3F0EFE21092"
+          }
+        },
+        {
+          "id": "ubuntu-server-lts",
+          "name": { "de": "Server (LTS)", "en": "Server (LTS)" },
+          "description": {
+            "de": "Minimaler Server ohne grafische Oberfläche, mit Langzeitsupport.",
+            "en": "Minimal server without a graphical interface, long-term support."
+          },
+          "categories": ["server", "homelab"],
+          "arch": "x86_64",
+          "flash_mode": "raw",
+          "min_usb_gb": 4,
+          "source": {
+            "type": "directory_listing",
+            "base_url": "https://releases.ubuntu.com/",
+            "steps": [
+              { "match": "^(?P<version>\\d*[02468]\\.04)/$" },
+              { "match": "^ubuntu-(?P<version>\\d+\\.04(?:\\.\\d+)?)-live-server-amd64\\.iso$" }
+            ]
+          },
+          "checksum": { "type": "file", "url": "SHA256SUMS", "algorithm": "sha256" },
+          "signature": {
+            "type": "gpg_detached",
+            "signs": "checksum_file",
+            "url": "SHA256SUMS.gpg",
+            "fingerprints": ["843938DF228D22F7B3742BC0D94AA3F0EFE21092"],
+            "keyring_url": "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x843938DF228D22F7B3742BC0D94AA3F0EFE21092"
+          }
+        }
+      ]
+    },
+    {
+      "id": "linuxmint",
+      "name": "Linux Mint",
+      "vendor": "Linux Mint Team",
+      "homepage": "https://linuxmint.com",
+      "description": {
+        "de": "Ubuntu-basiert, wirkt vertraut für Windows-Umsteiger.",
+        "en": "Ubuntu-based, feels familiar for people coming from Windows."
+      },
+      "variants": [
+        {
+          "id": "linuxmint-cinnamon",
+          "name": { "de": "Cinnamon", "en": "Cinnamon" },
+          "description": { "de": "Die Hauptedition mit moderner Oberfläche.", "en": "The flagship edition with a modern desktop." },
+          "categories": ["desktop"],
+          "arch": "x86_64",
+          "flash_mode": "raw",
+          "min_usb_gb": 8,
+          "source": {
+            "type": "directory_listing",
+            "base_url": "https://mirrors.kernel.org/linuxmint/stable/",
+            "steps": [
+              { "match": "^(?P<version>\\d+(?:\\.\\d+)?)/$" },
+              { "match": "^linuxmint-[\\d.]+-cinnamon-64bit\\.iso$" }
+            ]
+          },
+          "checksum": { "type": "file", "url": "sha256sum.txt", "algorithm": "sha256" },
+          "signature": {
+            "type": "gpg_detached",
+            "signs": "checksum_file",
+            "url": "sha256sum.txt.gpg",
+            "fingerprints": ["27DEB15644C6B3CF3BD7D291300F846BA25BAE09"],
+            "keyring_url": "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x27DEB15644C6B3CF3BD7D291300F846BA25BAE09"
+          }
+        },
+        {
+          "id": "linuxmint-xfce",
+          "name": { "de": "Xfce", "en": "Xfce" },
+          "description": { "de": "Schlanke Edition für ältere Rechner.", "en": "Lightweight edition for older machines." },
+          "categories": ["desktop"],
+          "arch": "x86_64",
+          "flash_mode": "raw",
+          "min_usb_gb": 8,
+          "source": {
+            "type": "directory_listing",
+            "base_url": "https://mirrors.kernel.org/linuxmint/stable/",
+            "steps": [
+              { "match": "^(?P<version>\\d+(?:\\.\\d+)?)/$" },
+              { "match": "^linuxmint-[\\d.]+-xfce-64bit\\.iso$" }
+            ]
+          },
+          "checksum": { "type": "file", "url": "sha256sum.txt", "algorithm": "sha256" },
+          "signature": {
+            "type": "gpg_detached",
+            "signs": "checksum_file",
+            "url": "sha256sum.txt.gpg",
+            "fingerprints": ["27DEB15644C6B3CF3BD7D291300F846BA25BAE09"],
+            "keyring_url": "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x27DEB15644C6B3CF3BD7D291300F846BA25BAE09"
+          }
+        }
+      ]
+    },
+    {
+      "id": "debian",
+      "name": "Debian",
+      "vendor": "Debian Project",
+      "homepage": "https://www.debian.org",
+      "description": {
+        "de": "Das „Universal-Betriebssystem“: extrem stabil, Basis vieler anderer Distros.",
+        "en": "The “universal operating system”: rock-solid and the base of many other distros."
+      },
+      "variants": [
+        {
+          "id": "debian-netinst",
+          "name": { "de": "Netinst", "en": "Netinst" },
+          "description": {
+            "de": "Kleines Installationsimage, lädt den Rest während der Installation aus dem Netz. Ideal für Server.",
+            "en": "Small installer image that downloads the rest during installation. Ideal for servers."
+          },
+          "categories": ["server", "homelab"],
+          "arch": "x86_64",
+          "flash_mode": "raw",
+          "min_usb_gb": 1,
+          "source": {
+            "type": "directory_listing",
+            "base_url": "https://cdimage.debian.org/debian-cd/current/amd64/iso-cd/",
+            "steps": [{ "match": "^debian-(?P<version>\\d+\\.\\d+\\.\\d+)-amd64-netinst\\.iso$" }]
+          },
+          "checksum": { "type": "file", "url": "SHA256SUMS", "algorithm": "sha256" },
+          "signature": {
+            "type": "gpg_detached",
+            "signs": "checksum_file",
+            "url": "SHA256SUMS.sign",
+            "fingerprints": ["DF9B9C49EAA9298432589D76DA87E80D6294BE9B"],
+            "keyring_url": "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xDF9B9C49EAA9298432589D76DA87E80D6294BE9B"
+          }
+        },
+        {
+          "id": "debian-live-gnome",
+          "name": { "de": "Live (GNOME)", "en": "Live (GNOME)" },
+          "description": {
+            "de": "Live-System mit GNOME-Desktop zum Ausprobieren und Installieren.",
+            "en": "Live system with the GNOME desktop to try out and install."
+          },
+          "categories": ["desktop"],
+          "arch": "x86_64",
+          "flash_mode": "raw",
+          "min_usb_gb": 8,
+          "source": {
+            "type": "directory_listing",
+            "base_url": "https://cdimage.debian.org/debian-cd/current-live/amd64/iso-hybrid/",
+            "steps": [{ "match": "^debian-live-(?P<version>\\d+\\.\\d+\\.\\d+)-amd64-gnome\\.iso$" }]
+          },
+          "checksum": { "type": "file", "url": "SHA256SUMS", "algorithm": "sha256" },
+          "signature": {
+            "type": "gpg_detached",
+            "signs": "checksum_file",
+            "url": "SHA256SUMS.sign",
+            "fingerprints": ["DF9B9C49EAA9298432589D76DA87E80D6294BE9B"],
+            "keyring_url": "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xDF9B9C49EAA9298432589D76DA87E80D6294BE9B"
+          }
+        },
+        {
+          "id": "debian-live-kde",
+          "name": { "de": "Live (KDE Plasma)", "en": "Live (KDE Plasma)" },
+          "description": {
+            "de": "Live-System mit KDE-Plasma-Desktop.",
+            "en": "Live system with the KDE Plasma desktop."
+          },
+          "categories": ["desktop"],
+          "arch": "x86_64",
+          "flash_mode": "raw",
+          "min_usb_gb": 8,
+          "source": {
+            "type": "directory_listing",
+            "base_url": "https://cdimage.debian.org/debian-cd/current-live/amd64/iso-hybrid/",
+            "steps": [{ "match": "^debian-live-(?P<version>\\d+\\.\\d+\\.\\d+)-amd64-kde\\.iso$" }]
+          },
+          "checksum": { "type": "file", "url": "SHA256SUMS", "algorithm": "sha256" },
+          "signature": {
+            "type": "gpg_detached",
+            "signs": "checksum_file",
+            "url": "SHA256SUMS.sign",
+            "fingerprints": ["DF9B9C49EAA9298432589D76DA87E80D6294BE9B"],
+            "keyring_url": "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xDF9B9C49EAA9298432589D76DA87E80D6294BE9B"
+          }
+        }
+      ]
+    },
+    {
+      "id": "fedora",
+      "name": "Fedora",
+      "vendor": "Fedora Project",
+      "homepage": "https://fedoraproject.org",
+      "description": {
+        "de": "Modern und nah an der Entwicklung von Linux, unterstützt von Red Hat.",
+        "en": "Modern and close to upstream Linux development, backed by Red Hat."
+      },
+      "variants": [
+        {
+          "id": "fedora-workstation",
+          "name": { "de": "Workstation", "en": "Workstation" },
+          "description": { "de": "Desktop-Edition mit GNOME.", "en": "Desktop edition with GNOME." },
+          "categories": ["desktop"],
+          "arch": "x86_64",
+          "flash_mode": "raw",
+          "min_usb_gb": 4,
+          "source": {
+            "type": "directory_listing",
+            "base_url": "https://dl.fedoraproject.org/pub/fedora/linux/releases/",
+            "steps": [
+              { "match": "^(?P<version>\\d+)/$" },
+              { "path": "Workstation/x86_64/iso/" },
+              { "match": "^Fedora-Workstation-Live-.*\\.iso$" }
+            ]
+          },
+          "checksum": { "type": "file", "match": "^Fedora-Workstation-.*-CHECKSUM$", "algorithm": "sha256" },
+          "signature": {
+            "type": "gpg_clearsigned",
+            "signs": "checksum_file",
+            "fingerprints": [
+              "C6E7F081CF80E13146676E88829B606631645531",
+              "36F612DCF27F7D1A48A835E4DBFCF71C6D9F90A6",
+              "4F50A6114CD5C6976A7F1179655A4B02F577861E"
+            ],
+            "keyring_url": "https://fedoraproject.org/fedora.gpg"
+          },
+          "notes": {
+            "de": "Jede Fedora-Version hat einen eigenen Signaturschlüssel – bei neuen Versionen muss der Katalog ergänzt werden.",
+            "en": "Every Fedora release has its own signing key – the catalog must be updated for new releases."
+          }
+        },
+        {
+          "id": "fedora-server",
+          "name": { "de": "Server", "en": "Server" },
+          "description": { "de": "Server-Edition (vollständiges DVD-Image).", "en": "Server edition (full DVD image)." },
+          "categories": ["server", "homelab"],
+          "arch": "x86_64",
+          "flash_mode": "raw",
+          "min_usb_gb": 4,
+          "source": {
+            "type": "directory_listing",
+            "base_url": "https://dl.fedoraproject.org/pub/fedora/linux/releases/",
+            "steps": [
+              { "match": "^(?P<version>\\d+)/$" },
+              { "path": "Server/x86_64/iso/" },
+              { "match": "^Fedora-Server-dvd-x86_64-.*\\.iso$" }
+            ]
+          },
+          "checksum": { "type": "file", "match": "^Fedora-Server-.*-CHECKSUM$", "algorithm": "sha256" },
+          "signature": {
+            "type": "gpg_clearsigned",
+            "signs": "checksum_file",
+            "fingerprints": [
+              "C6E7F081CF80E13146676E88829B606631645531",
+              "36F612DCF27F7D1A48A835E4DBFCF71C6D9F90A6",
+              "4F50A6114CD5C6976A7F1179655A4B02F577861E"
+            ],
+            "keyring_url": "https://fedoraproject.org/fedora.gpg"
+          }
+        }
+      ]
+    },
+    {
+      "id": "archlinux",
+      "name": "Arch Linux",
+      "homepage": "https://archlinux.org",
+      "description": {
+        "de": "Rolling Release zum Selberbauen – man installiert nur, was man braucht.",
+        "en": "Do-it-yourself rolling release – you install only what you need."
+      },
+      "variants": [
+        {
+          "id": "archlinux",
+          "name": { "de": "Installationsmedium", "en": "Installation medium" },
+          "description": {
+            "de": "Monatliches Installationsimage (Kommandozeile).",
+            "en": "Monthly installation image (command line)."
+          },
+          "categories": ["desktop", "server"],
+          "arch": "x86_64",
+          "flash_mode": "raw",
+          "min_usb_gb": 2,
+          "source": {
+            "type": "directory_listing",
+            "base_url": "https://geo.mirror.pkgbuild.com/iso/latest/",
+            "steps": [{ "match": "^archlinux-(?P<version>\\d{4}\\.\\d{2}\\.\\d{2})-x86_64\\.iso$" }]
+          },
+          "checksum": { "type": "file", "url": "sha256sums.txt", "algorithm": "sha256" },
+          "signature": {
+            "type": "gpg_detached",
+            "signs": "image",
+            "url": "{filename}.sig",
+            "fingerprints": ["3E80CA1A8B89F69CBA57D98A76A5EF9054449A5C"],
+            "keyring_url": "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x3E80CA1A8B89F69CBA57D98A76A5EF9054449A5C"
+          }
+        }
+      ]
+    },
+    {
+      "id": "opensuse",
+      "name": "openSUSE",
+      "vendor": "openSUSE Project",
+      "homepage": "https://www.opensuse.org",
+      "description": {
+        "de": "Solide Distribution aus Nürnberg mit dem mächtigen Konfigurationstool YaST/Agama.",
+        "en": "Solid distribution from Nuremberg with powerful system tooling."
+      },
+      "variants": [
+        {
+          "id": "opensuse-tumbleweed",
+          "name": { "de": "Tumbleweed", "en": "Tumbleweed" },
+          "description": {
+            "de": "Getestetes Rolling Release – immer die neueste Software.",
+            "en": "Tested rolling release – always the latest software."
+          },
+          "categories": ["desktop"],
+          "arch": "x86_64",
+          "flash_mode": "raw",
+          "min_usb_gb": 8,
+          "source": {
+            "type": "directory_listing",
+            "base_url": "https://download.opensuse.org/tumbleweed/iso/",
+            "steps": [{ "match": "^openSUSE-Tumbleweed-DVD-x86_64-Snapshot(?P<version>\\d{8})-Media\\.iso$" }]
+          },
+          "checksum": { "type": "file", "url": "{filename}.sha256", "algorithm": "sha256" },
+          "signature": {
+            "type": "gpg_detached",
+            "signs": "checksum_file",
+            "url": "{filename}.sha256.asc",
+            "fingerprints": ["AD485664E901B867051AB15F35A2F86E29B700A4"],
+            "keyring_url": "https://download.opensuse.org/tumbleweed/repo/oss/repodata/repomd.xml.key"
+          }
+        },
+        {
+          "id": "opensuse-leap",
+          "name": { "de": "Leap", "en": "Leap" },
+          "description": {
+            "de": "Stabile Version mit festen Releases (Offline-Installer).",
+            "en": "Stable fixed-release version (offline installer)."
+          },
+          "categories": ["desktop", "server"],
+          "arch": "x86_64",
+          "flash_mode": "raw",
+          "min_usb_gb": 8,
+          "source": {
+            "type": "directory_listing",
+            "base_url": "https://download.opensuse.org/distribution/leap/",
+            "steps": [
+              { "match": "^(?P<version>(?:1[6-9]|[2-3]\\d)\\.\\d+)/$" },
+              { "path": "offline/" },
+              { "match": "^Leap-[\\d.]+-offline-installer-x86_64\\.install\\.iso$" }
+            ]
+          },
+          "checksum": { "type": "file", "url": "{filename}.sha512", "algorithm": "sha512" },
+          "signature": {
+            "type": "gpg_detached",
+            "signs": "checksum_file",
+            "url": "{filename}.sha512.asc",
+            "fingerprints": ["AD485664E901B867051AB15F35A2F86E29B700A4"],
+            "keyring_url": "https://download.opensuse.org/tumbleweed/repo/oss/repodata/repomd.xml.key"
+          }
+        }
+      ]
+    },
+    {
+      "id": "popos",
+      "name": "Pop!_OS",
+      "vendor": "System76",
+      "homepage": "https://system76.com/pop/",
+      "description": {
+        "de": "Ubuntu-basiert, mit COSMIC-Desktop. Gut für Gaming und Entwicklung.",
+        "en": "Ubuntu-based with the COSMIC desktop. Great for gaming and development."
+      },
+      "variants": [
+        {
+          "id": "popos-intel",
+          "name": { "de": "Intel/AMD-Grafik", "en": "Intel/AMD graphics" },
+          "description": { "de": "Für Rechner mit Intel- oder AMD-Grafik.", "en": "For machines with Intel or AMD graphics." },
+          "categories": ["desktop", "gaming"],
+          "arch": "x86_64",
+          "flash_mode": "raw",
+          "min_usb_gb": 4,
+          "source": {
+            "type": "json_api",
+            "url": "https://api.pop-os.org/builds/24.04/intel",
+            "fields": { "url": "/url", "version": "/version", "build": "/build", "checksum": "/sha_sum", "size": "/size" }
+          },
+          "checksum": { "type": "from_source", "algorithm": "sha256" },
+          "notes": {
+            "de": "Die Hauptversion (24.04) steht in der API-URL und muss bei neuen Pop!_OS-Versionen im Katalog angepasst werden.",
+            "en": "The major version (24.04) is part of the API URL and must be updated in the catalog for new releases."
+          }
+        },
+        {
+          "id": "popos-nvidia",
+          "name": { "de": "NVIDIA-Grafik", "en": "NVIDIA graphics" },
+          "description": { "de": "Mit vorinstalliertem NVIDIA-Treiber.", "en": "With the NVIDIA driver preinstalled." },
+          "categories": ["desktop", "gaming"],
+          "arch": "x86_64",
+          "flash_mode": "raw",
+          "min_usb_gb": 4,
+          "source": {
+            "type": "json_api",
+            "url": "https://api.pop-os.org/builds/24.04/nvidia",
+            "fields": { "url": "/url", "version": "/version", "build": "/build", "checksum": "/sha_sum", "size": "/size" }
+          },
+          "checksum": { "type": "from_source", "algorithm": "sha256" }
+        }
+      ]
+    },
+    {
+      "id": "proxmox-ve",
+      "name": "Proxmox VE",
+      "vendor": "Proxmox Server Solutions",
+      "homepage": "https://www.proxmox.com/de/proxmox-virtual-environment",
+      "description": {
+        "de": "Virtualisierungsplattform für VMs und Container – der Klassiker im Homelab.",
+        "en": "Virtualization platform for VMs and containers – a homelab classic."
+      },
+      "variants": [
+        {
+          "id": "proxmox-ve",
+          "name": { "de": "Installer", "en": "Installer" },
+          "description": { "de": "Offizielles Installations-ISO.", "en": "Official installation ISO." },
+          "categories": ["server", "homelab"],
+          "arch": "x86_64",
+          "flash_mode": "raw",
+          "min_usb_gb": 2,
+          "source": {
+            "type": "directory_listing",
+            "base_url": "https://enterprise.proxmox.com/iso/",
+            "steps": [{ "match": "^proxmox-ve_(?P<version>\\d+\\.\\d+-\\d+)\\.iso$" }]
+          },
+          "checksum": { "type": "file", "url": "{filename}.sha256", "algorithm": "sha256" },
+          "signature": {
+            "type": "gpg_detached",
+            "signs": "image",
+            "url": "{filename}.asc",
+            "fingerprints": ["24B30F06ECC1836A4E5EFECBA7BCD1420BFE778E", "F4E136C67CDCE41AE6DE6FC81140AF8F639E0C39"],
+            "keyring_url": "https://enterprise.proxmox.com/debian/proxmox-archive-keyring-trixie.gpg"
+          }
+        }
+      ]
+    },
+    {
+      "id": "truenas",
+      "name": "TrueNAS Community Edition",
+      "vendor": "iXsystems",
+      "homepage": "https://www.truenas.com",
+      "description": {
+        "de": "NAS-Betriebssystem auf Basis von ZFS – für Datenspeicher im Homelab.",
+        "en": "ZFS-based NAS operating system – storage for your homelab."
+      },
+      "variants": [
+        {
+          "id": "truenas",
+          "name": { "de": "Stabile Version", "en": "Stable release" },
+          "description": { "de": "Neueste stabile Version (ohne Beta/RC).", "en": "Latest stable release (no beta/RC)." },
+          "categories": ["server", "homelab"],
+          "arch": "x86_64",
+          "flash_mode": "raw",
+          "min_usb_gb": 4,
+          "source": {
+            "type": "directory_listing",
+            "base_url": "https://download.truenas.com/",
+            "steps": [
+              {
+                "match": "^TrueNAS-(?:SCALE-[A-Za-z]+|\\d+)/(?P<version>\\d+(?:\\.\\d+)+)/TrueNAS-(?:SCALE-)?\\d+(?:\\.\\d+)+\\.iso$"
+              }
+            ]
+          },
+          "checksum": { "type": "file", "url": "{filename}.sha256", "algorithm": "sha256" },
+          "notes": {
+            "de": "TrueNAS veröffentlicht für die stabilen Versionen nur SHA256-Prüfsummen, keine GPG-Signatur.",
+            "en": "TrueNAS publishes only SHA256 checksums for stable releases, no GPG signature."
+          }
+        }
+      ]
+    },
+    {
+      "id": "batocera",
+      "name": "Batocera",
+      "homepage": "https://batocera.org",
+      "description": {
+        "de": "Retro-Gaming-Distribution: Stick rein, booten, spielen.",
+        "en": "Retro gaming distribution: plug in, boot, play."
+      },
+      "variants": [
+        {
+          "id": "batocera-x86-64",
+          "name": { "de": "PC (x86_64)", "en": "PC (x86_64)" },
+          "description": {
+            "de": "Für normale PCs. Läuft direkt vom Stick, keine Installation nötig.",
+            "en": "For regular PCs. Runs straight from the stick, no installation needed."
+          },
+          "categories": ["gaming"],
+          "arch": "x86_64",
+          "flash_mode": "raw",
+          "compression": "gzip",
+          "min_usb_gb": 16,
+          "source": {
+            "type": "directory_listing",
+            "base_url": "https://mirrors.o2switch.fr/batocera/x86_64/stable/last/",
+            "steps": [{ "match": "^batocera-x86_64-(?P<version>\\d+(?:\\.\\d+)?)-\\d{8}\\.img\\.gz$" }]
+          },
+          "checksum": { "type": "file", "url": "{filename}.md5", "algorithm": "md5" },
+          "notes": {
+            "de": "Batocera veröffentlicht nur MD5-Prüfsummen. Das erkennt kaputte Downloads, schützt aber nicht vor Manipulation.",
+            "en": "Batocera only publishes MD5 checksums. This detects broken downloads but does not protect against tampering."
+          }
+        }
+      ]
+    },
+    {
+      "id": "windows",
+      "name": "Windows",
+      "vendor": "Microsoft",
+      "homepage": "https://www.microsoft.com/software-download",
+      "description": {
+        "de": "Offizielles Installationsmedium direkt von Microsoft.",
+        "en": "Official installation media straight from Microsoft."
+      },
+      "variants": [
+        {
+          "id": "windows-11",
+          "name": { "de": "Windows 11", "en": "Windows 11" },
+          "description": {
+            "de": "Windows 11 (x64), Sprache wählbar. Ein Lizenzschlüssel ist nicht enthalten.",
+            "en": "Windows 11 (x64), selectable language. A licence key is not included."
+          },
+          "categories": ["windows"],
+          "arch": "x86_64",
+          "flash_mode": "windows",
+          "min_usb_gb": 8,
+          "source": { "type": "microsoft", "product": "windows11" },
+          "checksum": { "type": "from_source", "algorithm": "sha256" }
+        },
+        {
+          "id": "windows-10",
+          "name": { "de": "Windows 10", "en": "Windows 10" },
+          "description": {
+            "de": "Windows 10 (x64). Der reguläre Support ist im Oktober 2025 ausgelaufen.",
+            "en": "Windows 10 (x64). Regular support ended in October 2025."
+          },
+          "categories": ["windows"],
+          "arch": "x86_64",
+          "flash_mode": "windows",
+          "min_usb_gb": 8,
+          "source": { "type": "microsoft", "product": "windows10" },
+          "checksum": { "type": "from_source", "algorithm": "sha256" }
+        }
+      ]
+    }
+  ]
+}
