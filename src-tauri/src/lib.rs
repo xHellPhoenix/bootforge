@@ -19,6 +19,7 @@ pub fn run() {
             commands::resolve_latest,
             commands::prepare_image,
             commands::cancel_prepare,
+            commands::list_drives,
             commands::app_info
         ])
         .run(tauri::generate_context!())

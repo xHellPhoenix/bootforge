@@ -4,12 +4,15 @@ USB-Boot-Sticks erstellen, **ohne selbst ISOs suchen zu müssen**: Distribution 
 BootForge lädt die jeweils neueste Version direkt von der offiziellen Quelle, prüft sie (SHA-256 und GPG)
 und schreibt sie auf den Stick.
 
-> **Status:** Phase 3 von 7. Neueste Version ermitteln, herunterladen (mit Fortsetzen) und prüfen
-> (SHA-256/512 + GPG-Signatur des Herstellers) funktionieren. Das Flashen auf USB-Sticks fehlt noch.
+[![CI](https://github.com/xHellPhoenix/bootforge/actions/workflows/ci.yml/badge.svg)](https://github.com/xHellPhoenix/bootforge/actions/workflows/ci.yml)
 
-| Version wählen | Herunterladen | Geprüft |
-|---|---|---|
-| ![](docs/screenshots/phase2-version.png) | ![](docs/screenshots/phase3-progress.png) | ![](docs/screenshots/phase3-done.png) |
+> **Status:** Phase 4 von 7. Neueste Version ermitteln, herunterladen und prüfen (SHA-256/512 und
+> GPG-Signatur des Herstellers) funktionieren, USB-Sticks werden erkannt. Das Schreiben auf den
+> Stick fehlt noch.
+
+| Version wählen | Herunterladen | Geprüft | USB-Stick wählen |
+|---|---|---|---|
+| ![](docs/screenshots/phase2-version.png) | ![](docs/screenshots/phase3-progress.png) | ![](docs/screenshots/phase3-done.png) | ![](docs/screenshots/phase4-hidden.png) |
 
 ## Aufbau
 
@@ -49,6 +52,13 @@ Eine Variante ohne GUI herunterladen und prüfen (Strg+C bricht ab, erneuter Auf
 cargo run --release -p bootforge-core --example acquire_one -- debian-netinst /tmp/isos
 ```
 
+Laufwerke mit Urteil anzeigen (schreibt nichts). Zum Testen mit echten Sticks siehe
+[docs/TEST-USB.md](docs/TEST-USB.md):
+
+```bash
+cargo run -p bootforge-core --example list_drives
+```
+
 Einen anderen Katalog in der App testen (nur HTTPS):
 
 ```bash
@@ -66,7 +76,7 @@ cargo run -p bootforge-core --example gen_schema > catalog/catalog.schema.json
 1. ✅ Projektstruktur, Tauri-Grundgerüst, Katalog-Schema + Beispielkatalog
 2. ✅ Katalog über HTTPS laden (mit Cache) + „neueste Version“ ermitteln
 3. ✅ Download + Prüfsumme + GPG
-4. USB-Erkennung (Windows + Linux)
+4. ✅ USB-Erkennung (Windows + Linux)
 5. Raw-Flashen + Verifizierung
 6. Windows-ISOs + Windows-Flash-Modus
 7. GUI-Feinschliff, Builds, Doku

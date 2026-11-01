@@ -1,6 +1,6 @@
 // Dünne, typisierte Hülle um `invoke`. So steht jeder Command-Name nur an EINER Stelle.
 import { Channel, invoke } from "@tauri-apps/api/core";
-import type { Acquired, AcquireEvent, AppInfo, CatalogResponse, ResolvedImage } from "./types";
+import type { Acquired, AcquireEvent, AppInfo, CatalogResponse, Drive, ResolvedImage } from "./types";
 
 export const api = {
   getCatalog: () => invoke<CatalogResponse>("get_catalog"),
@@ -13,5 +13,6 @@ export const api = {
     return invoke<Acquired>("prepare_image", { variantId, onEvent: channel });
   },
   cancelPrepare: () => invoke<void>("cancel_prepare"),
+  listDrives: (showExternalHdds = false) => invoke<Drive[]>("list_drives", { showExternalHdds }),
   appInfo: () => invoke<AppInfo>("app_info"),
 };

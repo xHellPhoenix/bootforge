@@ -37,6 +37,8 @@ pub enum AppError {
     ChecksumMissing(String),
     #[error("Dateifehler: {0}")]
     Disk(String),
+    #[error("Laufwerke konnten nicht gelesen werden: {0}")]
+    DeviceScan(String),
     #[error("{0}")]
     Internal(String),
 }
