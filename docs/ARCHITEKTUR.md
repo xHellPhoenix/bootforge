@@ -416,6 +416,31 @@ Kennung (`io.github.xhellphoenix.sealflash`), Crate- und Repo-Namen, Helper-Pfad
 Volume-Label der Windows-Sticks. Weil sich die Kennung ändert, legt die App neue Ordner für Cache und
 Einstellungen an. Bereits heruntergeladene Images aus BootForge werden nicht übernommen.
 
+### E52 – Windows-Einrichtung per Antwortdatei, ohne Passwort und ohne Partitionierung
+Vor dem Schreiben kann man Fragen der Windows-Installation beantworten: lokales Konto statt
+Microsoft-Konto, Computername, Region/Tastatur, Datenschutz-Fragen, Hardware-Prüfungen. SealFlash
+erzeugt daraus `autounattend.xml` (`flash::unattend`) und legt sie ins Hauptverzeichnis des Sticks.
+Dort sucht Windows-Setup sie automatisch. Die Datei wird wie alle anderen beim Zurücklesen geprüft.
+- **Kein Passwort in der Datei:** Windows speichert Passwörter in Antwortdateien nur Base64-kodiert,
+  also lesbar für jeden, der den Stick hat. Das Konto wird deshalb ohne Passwort angelegt. Man setzt
+  es nach der ersten Anmeldung.
+- **Keine automatische Partitionierung:** Eine Antwortdatei könnte auch die Festplatte löschen und
+  neu aufteilen. Steckt so ein Stick im falschen PC, wären Daten weg. Die Plattenauswahl bleibt
+  deshalb immer eine Entscheidung am Bildschirm, und ein Test stellt sicher, dass die Datei kein
+  `DiskConfiguration` enthält.
+- **Sprache aus der ISO:** Verlangt die Antwortdatei eine Setup-Sprache, die das Image nicht
+  enthält, bricht Windows ab. Die Sprache wird deshalb aus `sources/lang.ini` der eingebundenen ISO
+  gelesen. Die Datei ist bei Microsoft UTF-16-kodiert.
+- **Eingaben doppelt geprüft:** Erlaubte Zeichen und Längen wie in Windows (Benutzername max. 20,
+  Computername max. 15, NetBIOS-Zeichen). Geprüft wird schon während der Eingabe und noch einmal im
+  Kern bzw. Root-Helper vor dem Schreiben. Alle Werte werden zusätzlich XML-maskiert.
+- **Hardware-Prüfungen umgehen** nutzt die von Microsoft für Tests vorgesehenen
+  `LabConfig`-Registry-Werte. Das ist offiziell nicht unterstützt und wird in der App so
+  gekennzeichnet.
+- **Lokale Konten:** Microsoft macht sie in neueren Windows-Versionen schwerer
+  (`BypassNRO`, `HideOnlineAccountScreens`). Über Antwortdateien funktioniert es, weil Firmen das
+  brauchen. Dass das in künftigen Versionen so bleibt, ist nicht garantiert.
+
 ## Offene Punkte
 - **Kompatibilität des Online-Katalogs:** Wegen `deny_unknown_fields` lehnt eine ältere App einen
   Katalog mit neuen Feldern ab (z. B. `allow_v3`) und fällt auf ihren Cache zurück. Neue Felder darf

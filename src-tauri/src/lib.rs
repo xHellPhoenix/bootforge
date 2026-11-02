@@ -30,6 +30,7 @@ pub fn run() {
             commands::cache_info,
             commands::clear_cache,
             commands::forge,
+            commands::validate_windows_setup,
             local::pick_image,
             local::open_download_page,
             local::verify_local,

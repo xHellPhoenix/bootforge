@@ -163,7 +163,7 @@ pub fn list(opts: ScanOptions) -> std::io::Result<Vec<Drive>> {
 }
 
 /// Prüft unmittelbar vor dem Schreiben, ob das gewählte Laufwerk noch **dasselbe** und noch
-/// zulässig ist. Zwischen Auswahl und Klick auf „Forge!“ kann viel passieren: Stick abgezogen,
+/// zulässig ist. Zwischen Auswahl und Klick auf „Flash!“ kann viel passieren: Stick abgezogen,
 /// anderer Stick eingesteckt (bekommt dann evtl. denselben Namen `/dev/sdb`!), Partition eingehängt …
 pub fn recheck(expected: &Drive, opts: ScanOptions) -> Result<Drive, String> {
     let current = list(opts).map_err(|e| format!("Laufwerke nicht lesbar: {e}"))?;

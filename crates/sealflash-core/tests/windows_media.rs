@@ -293,3 +293,72 @@ fn cancel_leaves_no_partition_table() {
         "keine (halbe) Partitionstabelle"
     );
 }
+
+/// Die Windows-Antwortdatei landet im Hauptverzeichnis des Sticks, ersetzt eine gleichnamige
+/// Datei der ISO und ist danach unabhängig (fatfs, fsck.vfat) lesbar.
+#[test]
+fn answer_file_is_written_to_stick_root() {
+    use sealflash_core::flash::unattend::WindowsSetup;
+
+    let d = dir("unattend");
+    let iso = d.join("iso");
+    fake_iso(&iso, false);
+    // Eine (alte) Antwortdatei in der ISO muss ersetzt werden, nicht doppelt auftauchen.
+    fs::write(iso.join("AUTOUNATTEND.XML"), b"<alt/>").unwrap();
+
+    let setup = WindowsSetup {
+        local_account: Some("Jürgen".into()),
+        computer_name: Some("TEST-PC".into()),
+        locale: Some("de-DE".into()),
+        skip_privacy: true,
+        bypass_requirements: true,
+    };
+    let xml = setup.to_xml(Some("de-DE")).unwrap();
+    let size = 128 * MB;
+    let dev = stick(&d, size);
+    let mut opts = MediaOptions::new(d.join("tmp"));
+    opts.extra_files
+        .push(("autounattend.xml".into(), xml.clone().into_bytes()));
+    write_windows_media(dev, size, &iso, &opts, &AtomicBool::new(false), &mut |_| {}).unwrap();
+
+    let mut whole = Vec::new();
+    File::open(d.join("stick.img"))
+        .unwrap()
+        .read_to_end(&mut whole)
+        .unwrap();
+    let part_end = ((size / 512 - 34) / 2048 * 2048) * 512;
+    let part_img = d.join("part.img");
+    fs::write(&part_img, &whole[MB as usize..part_end as usize]).unwrap();
+
+    let fs_ =
+        fatfs::FileSystem::new(File::open(&part_img).unwrap(), fatfs::FsOptions::new()).unwrap();
+    let root = fs_.root_dir();
+    let mut got = String::new();
+    root.open_file("autounattend.xml")
+        .unwrap()
+        .read_to_string(&mut got)
+        .unwrap();
+    assert_eq!(got, xml);
+    let matches = root
+        .iter()
+        .filter(|e| {
+            e.as_ref()
+                .unwrap()
+                .file_name()
+                .eq_ignore_ascii_case("autounattend.xml")
+        })
+        .count();
+    assert_eq!(matches, 1, "genau eine Antwortdatei");
+
+    if have("fsck.vfat") {
+        let out = Command::new("fsck.vfat")
+            .args(["-n", part_img.to_str().unwrap()])
+            .output()
+            .unwrap();
+        assert!(
+            out.status.success(),
+            "{}",
+            String::from_utf8_lossy(&out.stdout)
+        );
+    }
+}

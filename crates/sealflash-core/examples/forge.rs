@@ -1,4 +1,4 @@
-//! „Forge!“ ohne GUI: neueste Version laden, prüfen und auf einen USB-Stick schreiben.
+//! „Flash!“ ohne GUI: neueste Version laden, prüfen und auf einen USB-Stick schreiben.
 //!
 //! **Löscht alle Daten auf dem gewählten Stick!**
 //!
@@ -157,6 +157,7 @@ async fn main() {
             expected_hash: acquired.hash.clone(),
         },
         mode: img.flash_mode,
+        windows_setup: None,
     };
     let started = std::time::Instant::now();
     let result = tokio::task::spawn_blocking(move || {
