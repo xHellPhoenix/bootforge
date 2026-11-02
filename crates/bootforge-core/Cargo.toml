@@ -19,6 +19,8 @@ percent-encoding.workspace = true
 sha2.workspace = true
 md-5.workspace = true
 flate2.workspace = true
+xz2.workspace = true
+ruzstd.workspace = true
 crc32fast.workspace = true
 
 # GPG-Prüfung mit dem jeweils nativen Krypto-Backend (siehe docs/ARCHITEKTUR.md, E16):

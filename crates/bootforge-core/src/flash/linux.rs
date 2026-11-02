@@ -11,6 +11,8 @@ use crate::device::Drive;
 
 /// `BLKRRPART` = `_IO(0x12, 95)`: Kernel soll die Partitionstabelle neu einlesen.
 const BLKRRPART: libc::c_ulong = 0x125F;
+/// `BLKSSZGET` = `_IO(0x12, 104)`: logische Sektorgröße.
+const BLKSSZGET: libc::c_ulong = 0x1268;
 
 pub struct LinuxDevice(File);
 
@@ -32,6 +34,18 @@ impl io::Seek for LinuxDevice {
         self.0.seek(pos)
     }
 }
+impl LinuxDevice {
+    /// Logische Sektorgröße (fast immer 512, bei manchen USB-Festplatten 4096).
+    pub fn logical_sector_size(&self) -> io::Result<u32> {
+        let mut size: libc::c_int = 0;
+        // SAFETY: gültiger Griff eines Blockgeräts; BLKSSZGET schreibt einen int.
+        if unsafe { libc::ioctl(self.0.as_raw_fd(), BLKSSZGET as _, &mut size) } != 0 {
+            return Err(io::Error::last_os_error());
+        }
+        Ok(size as u32)
+    }
+}
+
 impl super::write::Device for LinuxDevice {
     fn sync(&mut self) -> io::Result<()> {
         self.0.sync_all()

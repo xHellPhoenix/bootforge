@@ -5,8 +5,9 @@ use std::sync::atomic::AtomicBool;
 
 use bootforge_core::acquire::{AcquireError, Assurance};
 use bootforge_core::catalog::HashAlgorithm;
+use bootforge_core::catalog::{Compression, FlashMode};
 use bootforge_core::http::fake::FakeFetcher;
-use bootforge_core::local::{Expected, is_windows_installer, verify_local};
+use bootforge_core::local::{Expected, inspect, is_windows_installer, verify_local};
 use bootforge_core::verify::sums::Hasher;
 
 fn fixture(name: &str) -> PathBuf {
@@ -26,6 +27,9 @@ const PAGE: &str = "https://www.microsoft.com/en-us/software-download/windows11"
 #[test]
 fn detects_windows_installer_iso() {
     assert!(is_windows_installer(&fixture("windows-mini.iso")).unwrap());
+    // Wie bei Microsoft: Dateien nur im UDF-Teil, ISO9660 enthält nur README.TXT
+    // (gebaut mit `genisoimage -udf -hide bootmgr -hide sources …`).
+    assert!(is_windows_installer(&fixture("windows-udf-only.iso")).unwrap());
     assert!(!is_windows_installer(&fixture("linux-mini.iso")).unwrap());
     // Kein ISO9660 → kein Windows-ISO (z. B. .img oder Prüfsummendatei)
     assert!(!is_windows_installer(&fixture("ubuntu-SHA256SUMS")).unwrap());
@@ -114,4 +118,34 @@ async fn page_without_hashes_is_an_error_not_a_pass() {
     .await
     .unwrap_err();
     assert!(matches!(err, AcquireError::ChecksumNotListed { .. }));
+}
+
+#[test]
+fn inspect_decides_mode_and_warns_about_non_hybrid() {
+    let win = inspect(&fixture("windows-udf-only.iso")).unwrap();
+    assert_eq!(win.flash_mode, FlashMode::Windows);
+    assert_eq!(win.compression, Compression::None);
+
+    let linux = inspect(&fixture("linux-mini.iso")).unwrap();
+    assert_eq!(linux.flash_mode, FlashMode::Raw);
+
+    let dir = std::env::temp_dir().join(format!("bf-inspect-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let mut mbr = vec![0u8; 4096];
+    mbr[510] = 0x55;
+    mbr[511] = 0xAA;
+    std::fs::write(dir.join("disk.img"), &mbr).unwrap();
+    assert_eq!(
+        inspect(&dir.join("disk.img")).unwrap().boot_record,
+        Some(true)
+    );
+    std::fs::write(dir.join("plain.img"), vec![0u8; 4096]).unwrap();
+    assert_eq!(
+        inspect(&dir.join("plain.img")).unwrap().boot_record,
+        Some(false)
+    );
+    std::fs::write(dir.join("pi.img.xz"), b"xz").unwrap();
+    let xz = inspect(&dir.join("pi.img.xz")).unwrap();
+    assert_eq!((xz.compression, xz.boot_record), (Compression::Xz, None));
+    let _ = std::fs::remove_dir_all(&dir);
 }

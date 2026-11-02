@@ -6,14 +6,20 @@ und schreibt sie auf den Stick.
 
 [![CI](https://github.com/xHellPhoenix/bootforge/actions/workflows/ci.yml/badge.svg)](https://github.com/xHellPhoenix/bootforge/actions/workflows/ci.yml)
 
-> **Status:** Phase 5 von 7. BootForge ermittelt die neueste Version, lädt sie herunter und prüft
+> **Status:** Phase 6 von 7. BootForge ermittelt die neueste Version, lädt sie herunter und prüft
 > sie (SHA-256/512 und GPG-Signatur des Herstellers). Dann schreibt es sie auf einen USB-Stick und
-> prüft den Stick durch Zurücklesen. Es fehlen noch Windows-Installationsmedien (Phase 6) und
-> die fertigen Installationspakete (Phase 7).
+> prüft den Stick durch Zurücklesen. **Windows 10/11:** Die ISO lädt man selbst bei Microsoft,
+> BootForge prüft sie gegen Microsofts veröffentlichte Prüfsummen und baut daraus einen
+> UEFI-Installationsstick (GPT + FAT32). **Eigenes Image:** beliebige ISO/IMG (auch `.xz`/`.zst`)
+> mit der Prüfsumme des Herstellers. Es fehlen noch die fertigen Installationspakete (Phase 7).
 
 | Version wählen | Herunterladen | USB-Stick wählen | Bestätigen |
 |---|---|---|---|
 | ![](docs/screenshots/phase2-version.png) | ![](docs/screenshots/phase3-progress.png) | ![](docs/screenshots/phase4-hidden.png) | ![](docs/screenshots/phase5-confirm.png) |
+
+| Windows 11 | Eigenes Image |
+|---|---|
+| ![](docs/screenshots/phase6-windows.png) | ![](docs/screenshots/phase6-own.png) |
 
 ## Aufbau
 
@@ -26,7 +32,7 @@ und schreibt sie auf den Stick.
 | `src/` | GUI (Svelte 5 + TypeScript) |
 | `catalog/catalog.json` | Eingebauter Offline-Fallback des Katalogs. Der aktuelle Katalog liegt in [bootforge-catalog](https://github.com/xHellPhoenix/bootforge-catalog) |
 | `catalog/catalog.schema.json` | JSON-Schema, **generiert** aus dem Rust-Code |
-| `docs/` | [Architektur & Entscheidungen](docs/ARCHITEKTUR.md), [Katalogformat](docs/KATALOG.md) |
+| `docs/` | [Architektur & Entscheidungen](docs/ARCHITEKTUR.md), [Katalogformat](docs/KATALOG.md), Testanleitungen ([USB](docs/TEST-USB.md), [Schreiben](docs/TEST-FLASH.md), [Windows & eigenes Image](docs/TEST-WINDOWS.md)) |
 
 ## Entwickeln
 
@@ -91,5 +97,5 @@ cargo run -p bootforge-core --example gen_schema > catalog/catalog.schema.json
 3. ✅ Download + Prüfsumme + GPG
 4. ✅ USB-Erkennung (Windows + Linux)
 5. ✅ Raw-Flashen + Verifizierung
-6. Windows-ISOs + Windows-Flash-Modus
+6. ✅ Windows-ISOs + Windows-Flash-Modus, eigene Images
 7. GUI-Feinschliff, Builds, Doku

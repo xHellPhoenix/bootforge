@@ -1,24 +1,39 @@
+<script lang="ts" module>
+  /** Schlüssel für „Eigenes Image“ in `localImages`. */
+  export const OWN_KEY = "__own";
+</script>
+
 <script lang="ts">
   import { lt, t } from "../lib/i18n.svelte";
-  import type { Distro, ResolveState, Variant } from "../lib/types";
+  import type { Distro, LocalImage, ResolveState, Variant } from "../lib/types";
+  import LocalImagePanel from "./LocalImagePanel.svelte";
   import ResolvedInfo from "./ResolvedInfo.svelte";
 
   let {
     distro,
+    own,
     selected,
     resolved,
+    localImages,
     onpick,
     onretry,
+    onlocal,
   }: {
     distro: Distro | null;
+    /** „Eigenes Image“ gewählt statt einer Distribution. */
+    own: boolean;
     selected: Variant | null;
     resolved: Record<string, ResolveState>;
+    /** Geprüfte eigene Dateien je Variante (bzw. `OWN_KEY`). */
+    localImages: Record<string, LocalImage>;
     onpick: (v: Variant) => void;
     onretry: (variantId: string) => void;
+    onlocal: (key: string, img: LocalImage | null) => void;
   } = $props();
 
   /** Wie gut ist die Integrität abgesichert? Wird als farbiger Chip angezeigt. */
   function integrity(v: Variant): { label: string; tone: "ok" | "warn" | "" } {
+    if (v.checksum.type === "page_listing") return { label: t("distro.integrity.vendor_list"), tone: "" };
     if (v.signature) return { label: t("distro.integrity.gpg"), tone: "ok" };
     if (v.checksum.algorithm === "md5") return { label: t("distro.integrity.md5"), tone: "warn" };
     return { label: t(`distro.integrity.${v.checksum.algorithm}`), tone: "" };
@@ -26,7 +41,14 @@
 </script>
 
 <section class="panel">
-  {#if distro}
+  {#if own}
+    <div class="head">
+      <h2>{t("local.own.title")}</h2>
+      <p>{t("local.own.intro")}</p>
+    </div>
+    <h3>{t("local.own.heading")}</h3>
+    <LocalImagePanel variant={null} local={localImages[OWN_KEY] ?? null} onverified={(img) => onlocal(OWN_KEY, img)} />
+  {:else if distro}
     <div class="head">
       <h2>{distro.name}</h2>
       {#if distro.vendor}<span class="vendor">{distro.vendor}</span>{/if}
@@ -57,7 +79,12 @@
             {#if v.notes}<span class="note">{lt(v.notes)}</span>{/if}
           </span>
         </button>
-        {#if selected?.id === v.id && resolved[v.id]}
+        {#if selected?.id === v.id && v.source.type === "manual"}
+          <!-- `#key`: Bei Wechsel der Variante frisch anlegen (eigener Zustand je Variante). -->
+          {#key v.id}
+            <LocalImagePanel variant={v} local={localImages[v.id] ?? null} onverified={(img) => onlocal(v.id, img)} />
+          {/key}
+        {:else if selected?.id === v.id && resolved[v.id]}
           <ResolvedInfo state={resolved[v.id]} onretry={() => onretry(v.id)} />
         {/if}
       {/each}

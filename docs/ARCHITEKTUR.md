@@ -286,6 +286,88 @@ Mit `resolver = "3"` wählt Cargo nur Paketversionen, die mit der angegebenen Mi
 Die npm-Pakete waren aber schon 2.12, und `tauri dev` meldete einen Versions-Mismatch. Jetzt steht
 dort `1.90`, und Rust- und npm-Seite von Tauri sind wieder auf derselben Minor-Version.
 
+### E36 – Windows-ISOs lädt der Nutzer selbst herunter, BootForge prüft sie
+Microsoft bietet keinen offenen Download-Link an. Die Download-Seite fordert die Links über eine
+Schnittstelle mit Bot-Schutz an. Den zu umgehen wäre technisch möglich, verstößt aber gegen
+Microsofts Regeln und kann jederzeit brechen, deshalb machen wir das bewusst **nicht**. Stattdessen:
+1. „Download-Seite öffnen“ öffnet Microsofts Seite im Browser des Nutzers.
+2. Der Nutzer wählt die heruntergeladene ISO aus.
+3. BootForge lädt dieselbe Seite über HTTPS und liest die **von Microsoft veröffentlichte Tabelle
+   der SHA-256-Werte** aus (Katalog: `"checksum": {"type": "page_listing"}`). Steht der Hash der
+   Datei nicht darin, wird nicht geschrieben. Ist die Tabelle leer (Seite umgebaut), ist das ein
+   Fehler und kein „Durchwinken“.
+
+### E37 – „Eigenes Image“: Prüfsumme ist Pflicht
+Für Images, die nicht im Katalog stehen, gibt der Nutzer die Prüfsumme des Herstellers ein (SHA-256
+oder SHA-512, MD5 nur mit Warnung). Ohne Prüfsumme lässt sich nichts schreiben. Das ist dieselbe Regel
+wie bei Downloads: Beschädigte oder manipulierte Dateien fallen so auf. Der Schreibmodus wird
+automatisch erkannt (Windows-Installer oder 1:1). Bei einem ISO ohne Bootsektor warnt die GUI.
+
+### E38 – Windows-Stick: GPT + FAT32 statt 1:1-Abbild
+Windows-ISOs sind keine Hybrid-ISOs: 1:1 auf einen Stick geschrieben, startet davon kein PC. BootForge
+baut den Stick deshalb wie Rufus im UEFI-Standardmodus: GPT mit einer FAT32-Partition
+(„Microsoft Basic Data“) und alle Dateien der ISO darauf. UEFI-Firmware startet `efi\boot\bootx64.efi`
+direkt von FAT32, auch mit Secure Boot, weil die Datei von Microsoft signiert ist.
+**FAT32 kann keine Dateien über 4 GB speichern**, `install.wim` ist aber meist größer. Sie wird
+mit `wimlib-imagex split` in `install.swm`, `install2.swm` … zerlegt, die das Windows-Setup direkt
+lesen kann. Die Alternative NTFS bräuchte einen eigenen NTFS-Treiber für die Firmware
+(Rufus' „UEFI:NTFS“) und wäre viel komplexer. Folge: nur UEFI-Boot, kein reines BIOS. Seit Windows 11
+ist UEFI ohnehin Pflicht.
+
+### E39 – Eigenes FAT32 statt Bibliothek
+Erst wurde die Bibliothek `fatfs` verwendet. `fsck.vfat` meldete danach Fehler: Sie schreibt
+Langnamen-Einträge vor „.“ und „..“, und FSInfo bleibt uninitialisiert. Weil die komplette Dateiliste
+vorher bekannt ist, ist ein eigener „Planer“ einfach. Er berechnet alle Metadaten (Bootsektor, FATs,
+Verzeichnisse) vorab und legt jede Datei zusammenhängend ab. Danach werden nur noch Bytes an
+berechnete Stellen geschrieben. Das ist leicht zu prüfen: Beim Zurücklesen werden die Metadaten Byte
+für Byte und jede Datei per SHA-256 verglichen. Getestet wird gegen die Standardwerkzeuge
+`fsck.vfat`, `sgdisk -v` und `wimlib-imagex join`.
+
+### E40 – Block-Cache für den Direktzugriff
+Am Betriebssystem-Cache vorbei (`O_DIRECT` / `FILE_FLAG_NO_BUFFERING`) muss jeder Zugriff
+sektor-ausgerichtet sein. Partitionstabelle und FAT-Strukturen sind aber kleine, krumme Stücke.
+`BlockCache` sammelt sie in 1-MiB-Blöcken und merkt sich pro 512-Byte-Sektor „gültig“ und „geändert“.
+Fortlaufende Dateiinhalte kommen so ganz ohne vorheriges Lesen aus.
+
+### E41 – ISO einbinden: ohne fremde Programme und ohne Austausch-Lücke
+- **Linux** (im Root-Helper): Der Helper öffnet die Datei selbst (`O_NOFOLLOW`), prüft Besitzer
+  und Fingerabdruck (Gerät, Inode, Größe, Änderungszeit von vor der Hash-Prüfung) und hängt **genau
+  diesen Dateigriff** per `LOOP_SET_FD` an ein Loop-Gerät. Mit `mount(2)` wird es dann eingebunden,
+  schreibgeschützt und mit `nosuid,nodev,noexec`, in ein Verzeichnis unter `/run`, das nur root
+  lesen kann. Wer den Pfad zwischen Prüfung und Einbinden austauscht, fällt auf (`ImageChanged`).
+  Das Loop-Gerät löst sich beim Aushängen selbst (`LO_FLAGS_AUTOCLEAR`).
+- **Windows**: `Mount-DiskImage -Access ReadOnly` (PowerShell, eingebaut). Der Fingerabdruck ist dort
+  Größe + Änderungszeit.
+- Nach dem Kopieren wird der Fingerabdruck erneut verglichen. Hat sich die ISO geändert, wird der
+  Stick unbrauchbar gemacht.
+
+### E42 – Windows-ISOs am UDF-Dateisystem erkennen
+Microsofts ISOs sind „UDF-Bridge“-Images: Alle Dateien stehen nur im UDF-Teil, der ISO9660-Teil
+enthält nur eine `README.TXT` („This disc contains a UDF file system …“). BootForge liest deshalb das
+UDF-Hauptverzeichnis selbst (`local::udf`, ca. 150 Zeilen nach ECMA-167) und sucht `sources/` und
+`bootmgr`. Die Testdatei `windows-udf-only.iso` hat genau diesen Aufbau (`genisoimage -udf -hide …`).
+
+### E43 – Datei-Dialog und Browser öffnen nur im Backend
+`tauri-plugin-dialog` und `tauri-plugin-opener` werden nur aus Rust benutzt. In
+`capabilities/default.json` steht weiterhin nur `core:default`, das Frontend kann also weder Dateien
+lesen noch beliebige Programme oder Adressen öffnen. „Download-Seite öffnen“ übergibt nur die
+Varianten-ID, die Adresse kommt aus dem Katalog (und muss HTTPS sein). „Forge!“ mit eigener Datei
+akzeptiert nur Pfade, die vorher im Backend geprüft wurden. Beim Schreiben wird ohnehin noch einmal
+gehasht.
+
+### E44 – Privates Arbeitsverzeichnis für Zwischendateien
+Die aufgeteilten `.swm`-Dateien entstehen in einem neu angelegten Verzeichnis mit Zufallsnamen und
+Modus 0700, unter Linux in `/var/tmp` (liegt auf der Platte, `/tmp` ist oft eine RAM-Disk). Ein fester
+Name wie `/tmp/bootforge` wäre gefährlich, weil der Helper als root läuft: Ein anderer Benutzer könnte
+das Verzeichnis vorher anlegen und Symlinks hineinlegen, und root würde dann fremde Dateien
+überschreiben.
+
+### E45 – Komprimierte Images: gzip, xz, zstd im Fluss
+Eigene Images sind oft komprimiert (Raspberry Pi: `.img.xz`). Sie werden beim Schreiben im Fluss
+entpackt (`flate2`, `xz2`, `ruzstd`). Die Prüfsumme gilt, wie bei den Herstellern üblich, für die
+komprimierte Datei. `xz2` kompiliert liblzma 5.2 mit. Die Versionen 5.6.0/5.6.1 mit der Hintertür von
+2024 sind nicht betroffen.
+
 ## Offene Punkte für spätere Phasen
 - **Kompatibilität des Online-Katalogs:** Wegen `deny_unknown_fields` lehnt eine ältere App einen
   Katalog mit neuen Feldern ab (z. B. `allow_v3`) und fällt auf ihren Cache zurück. Neue Felder darf
@@ -297,4 +379,8 @@ dort `1.90`, und Rust- und npm-Seite von Tauri sind wieder auf derselben Minor-V
 - TypeScript-Typen werden noch von Hand gepflegt (`src/lib/types.ts`). Später eventuell mit
   `specta`/`ts-rs` generieren.
 - Linux-Pakete: Helper nach `/usr/lib/bootforge/`, polkit-Regel nach `/usr/share/polkit-1/actions/` (Phase 7).
-- Komprimierung `xz`/`zstd` beim Schreiben (bisher nur `gzip`, mehr braucht der Katalog noch nicht).
+- `wimlib-imagex` (+ `libwim-15.dll`) der Windows-Version beilegen; unter Linux als Paket-Abhängigkeit
+  `wimtools` (Phase 7).
+- Katalog-Zweig `windows-manual-other` erst nach dem Release dieser App-Version nach `main` mergen
+  (siehe Kompatibilität oben).
+- Windows-Sticks für reine BIOS-PCs (MBR + NTFS + Bootsektor) – bewusst nicht geplant, siehe E38.

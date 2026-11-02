@@ -24,7 +24,8 @@ use windows_sys::Win32::Storage::FileSystem::{
 };
 use windows_sys::Win32::System::IO::DeviceIoControl;
 use windows_sys::Win32::System::Ioctl::{
-    FSCTL_DISMOUNT_VOLUME, FSCTL_LOCK_VOLUME, IOCTL_DISK_UPDATE_PROPERTIES,
+    FSCTL_DISMOUNT_VOLUME, FSCTL_LOCK_VOLUME, IOCTL_DISK_GET_DRIVE_GEOMETRY,
+    IOCTL_DISK_UPDATE_PROPERTIES,
 };
 use windows_sys::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken};
 
@@ -55,6 +56,33 @@ impl io::Seek for WindowsDevice {
         self.disk.seek(pos)
     }
 }
+impl WindowsDevice {
+    /// Logische Sektorgröße (fast immer 512, bei manchen USB-Festplatten 4096).
+    pub fn logical_sector_size(&self) -> io::Result<u32> {
+        // DISK_GEOMETRY: Cylinders (8), MediaType (4), TracksPerCylinder (4),
+        // SectorsPerTrack (4), BytesPerSector (4) = 24 Bytes.
+        let mut geo = [0u8; 24];
+        let mut returned = 0u32;
+        // SAFETY: gültiges Handle, Ausgabepuffer mit der Größe von DISK_GEOMETRY.
+        let ok = unsafe {
+            DeviceIoControl(
+                self.disk.as_raw_handle(),
+                IOCTL_DISK_GET_DRIVE_GEOMETRY,
+                std::ptr::null(),
+                0,
+                geo.as_mut_ptr().cast(),
+                geo.len() as u32,
+                &mut returned,
+                std::ptr::null_mut(),
+            )
+        };
+        if ok == 0 {
+            return Err(io::Error::last_os_error());
+        }
+        Ok(u32::from_le_bytes(geo[20..24].try_into().expect("4 Bytes")))
+    }
+}
+
 impl super::write::Device for WindowsDevice {
     fn sync(&mut self) -> io::Result<()> {
         self.disk.sync_all()

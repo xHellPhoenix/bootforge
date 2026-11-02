@@ -1,11 +1,11 @@
 //! Tauri-Commands: Funktionen, die das Frontend mit `invoke("name")` aufrufen kann.
 
+use std::path::PathBuf;
 use std::time::Instant;
 
 use std::sync::atomic::Ordering;
 
 use bootforge_core::acquire::{self, AcquireEvent, Acquired};
-use bootforge_core::catalog::FlashMode;
 use bootforge_core::catalog::load::{self, DEFAULT_CATALOG_URL, Loaded};
 use bootforge_core::device::{self, Drive, ScanOptions};
 use bootforge_core::flash::{FlashJob, FlashReport, ForgeRequest};
@@ -16,7 +16,7 @@ use url::Url;
 
 use crate::error::AppError;
 use crate::events::ForgeEvent;
-use crate::state::{AppState, RESOLVE_TTL};
+use crate::state::{AppState, BusyGuard, RESOLVE_TTL};
 
 /// Katalog-URL. Für Tests/Entwicklung per Umgebungsvariable `BOOTFORGE_CATALOG_URL`
 /// überschreibbar – aber nur mit HTTPS, sonst wird die Standard-URL genommen.
@@ -104,18 +104,7 @@ pub async fn prepare_image(
     app: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<Acquired, AppError> {
-    // `swap` setzt atomar auf true und liefert den alten Wert: war schon true → läuft bereits.
-    if state.busy.swap(true, Ordering::SeqCst) {
-        return Err(AppError::Busy);
-    }
-    // Guard: setzt `busy` zurück, egal wie die Funktion endet (auch bei `?`).
-    struct Done<'a>(&'a AppState);
-    impl Drop for Done<'_> {
-        fn drop(&mut self) {
-            self.0.busy.store(false, Ordering::SeqCst);
-        }
-    }
-    let _done = Done(&state);
+    let _busy = BusyGuard::acquire(&state)?;
     state.cancel.store(false, Ordering::SeqCst);
 
     let img = resolve_cached(&state, variant_id, false).await?;
@@ -145,13 +134,24 @@ pub struct ForgeResult {
     pub report: FlashReport,
 }
 
-/// „Forge!“: Image beschaffen + prüfen (wie `prepare_image`), dann auf den Stick schreiben.
+/// Woher das Image für „Forge!“ kommt.
+#[derive(Debug, serde::Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum ForgeSource {
+    /// Aus dem Katalog: wird (falls nötig) heruntergeladen und geprüft.
+    Catalog { variant_id: String },
+    /// Eigene Datei, vorher mit `verify_local` geprüft.
+    Local { path: PathBuf },
+}
+
+/// „Forge!“: Image beschaffen + prüfen (bzw. die geprüfte eigene Datei nehmen), dann auf den
+/// Stick schreiben.
 ///
 /// `confirm_name` ist das, was der Nutzer im Bestätigungsdialog eingetippt hat. Es wird HIER
 /// noch einmal geprüft – ein Fehler in der GUI darf die Bestätigung nicht aushebeln.
 #[tauri::command]
 pub async fn forge(
-    variant_id: String,
+    source: ForgeSource,
     drive: Drive,
     show_external_hdds: bool,
     confirm_name: String,
@@ -162,46 +162,49 @@ pub async fn forge(
     if !confirm_name.trim().eq_ignore_ascii_case(drive.name.trim()) {
         return Err(AppError::ConfirmMismatch);
     }
-    if state.busy.swap(true, Ordering::SeqCst) {
-        return Err(AppError::Busy);
-    }
-    struct Done<'a>(&'a AppState);
-    impl Drop for Done<'_> {
-        fn drop(&mut self) {
-            self.0.busy.store(false, Ordering::SeqCst);
-        }
-    }
-    let _done = Done(&state);
+    let _busy = BusyGuard::acquire(&state)?;
     state.cancel.store(false, Ordering::SeqCst);
 
-    let img = resolve_cached(&state, variant_id, false).await?;
-    if img.flash_mode != FlashMode::Raw {
-        return Err(AppError::NotSupportedYet(
-            "Windows-Installationsmedien (folgt in Phase 6)".into(),
-        ));
-    }
+    let (acquired, compression, mode) = match source {
+        ForgeSource::Catalog { variant_id } => {
+            let img = resolve_cached(&state, variant_id, false).await?;
+            let dir = app
+                .path()
+                .app_cache_dir()
+                .map_err(|e| AppError::Internal(e.to_string()))?
+                .join("images");
+            let acquired = acquire::acquire(&state.http, &img, &dir, &state.cancel, |e| {
+                let _ = on_event.send(ForgeEvent::Acquire(e));
+            })
+            .await?;
+            (acquired, img.compression, img.flash_mode)
+        }
+        ForgeSource::Local { path } => {
+            let local = state
+                .local
+                .lock()
+                .expect("Mutex nicht vergiftet")
+                .get(&path)
+                .cloned()
+                .ok_or(AppError::NotVerified)?;
+            (
+                local.acquired,
+                local.info.compression,
+                local.info.flash_mode,
+            )
+        }
+    };
 
-    // 1) Beschaffen und prüfen
-    let dir = app
-        .path()
-        .app_cache_dir()
-        .map_err(|e| AppError::Internal(e.to_string()))?
-        .join("images");
-    let acquired = acquire::acquire(&state.http, &img, &dir, &state.cancel, |e| {
-        let _ = on_event.send(ForgeEvent::Acquire(e));
-    })
-    .await?;
-
-    // 2) Schreiben
     let req = ForgeRequest {
         drive,
         opts: ScanOptions { show_external_hdds },
         job: FlashJob {
             image: acquired.path.clone(),
-            compression: img.compression,
+            compression,
             algorithm: acquired.algorithm,
             expected_hash: acquired.hash.clone(),
         },
+        mode,
     };
     let report = crate::forge::flash(req, state.cancel.clone(), on_event).await?;
     Ok(ForgeResult { acquired, report })

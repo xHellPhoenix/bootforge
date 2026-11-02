@@ -39,8 +39,20 @@ Für Hersteller mit API (Pop!_OS). Felder werden per JSON-Pointer gelesen (`/url
 ### `github_release`
 Neuestes Release eines GitHub-Repos, Asset per Regex.
 
-### `microsoft`
-Windows 10/11 direkt von Microsoft (Phase 6).
+### `manual`
+Das Image lädt der Nutzer selbst herunter (Windows 10/11, siehe Architektur E36). BootForge öffnet
+nur `download_page` im Browser. `filename_pattern` beschreibt, wie die Datei typischerweise heißt.
+
+```json
+{
+  "type": "manual",
+  "download_page": "https://www.microsoft.com/de-de/software-download/windows11",
+  "filename_pattern": "(?i)^win.*11.*x64.*\\.iso$"
+}
+```
+
+Eine `manual`-Quelle braucht `"checksum": {"type": "page_listing"}` und darf keine `signature`
+haben.
 
 ## `checksum`
 
@@ -49,9 +61,19 @@ Windows 10/11 direkt von Microsoft (Phase 6).
 { "type": "file", "url": "{filename}.sha256", "algorithm": "sha256" }
 { "type": "file", "match": "^Fedora-Workstation-.*-CHECKSUM$", "algorithm": "sha256" }
 { "type": "from_source", "algorithm": "sha256" }
+{ "type": "page_listing", "url": "https://www.microsoft.com/en-us/software-download/windows11", "algorithm": "sha256" }
 ```
 
 Relative URLs beziehen sich auf das Verzeichnis des Images. Platzhalter: `{filename}`, `{version}`.
+
+`page_listing` (nur mit `manual`): Der Hash der ausgewählten Datei muss auf dieser HTTPS-Seite
+stehen. Gezählt werden nur Hex-Werte mit genau der passenden Länge (64 Zeichen bei SHA-256).
+Steht gar kein Wert auf der Seite, ist das ein Fehler.
+
+## Kategorie `other`
+
+Die Kategorie mit der ID `other` („Eigenes Image“) braucht keine Einträge. Die App zeigt darunter
+immer den festen Eintrag „Eigenes Image“ (beliebige Datei + Prüfsumme des Herstellers).
 
 ## `signature`
 

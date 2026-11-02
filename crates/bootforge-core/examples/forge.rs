@@ -156,6 +156,7 @@ async fn main() {
             algorithm: acquired.algorithm,
             expected_hash: acquired.hash.clone(),
         },
+        mode: img.flash_mode,
     };
     let started = std::time::Instant::now();
     let result = tokio::task::spawn_blocking(move || {

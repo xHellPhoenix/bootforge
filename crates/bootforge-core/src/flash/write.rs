@@ -132,6 +132,14 @@ pub trait Device: Read + Write + Seek {
     fn sync(&mut self) -> io::Result<()>;
 }
 
+/// Damit man ein Gerät „ausleihen“ kann (z. B. an den Windows-Modus) und danach selbst
+/// weiterbenutzt (Partitionstabelle neu einlesen lassen).
+impl<D: Device + ?Sized> Device for &mut D {
+    fn sync(&mut self) -> io::Result<()> {
+        (**self).sync()
+    }
+}
+
 impl Device for File {
     fn sync(&mut self) -> io::Result<()> {
         self.flush()?;
@@ -337,12 +345,7 @@ pub fn write_and_verify<D: Device>(
         count: count.clone(),
         hasher: source_hash.clone(),
     };
-    let mut reader: Box<dyn Read> = match job.compression {
-        Compression::None => Box::new(counting),
-        // MultiGz: manche .gz bestehen aus mehreren hintereinandergehängten Teilen.
-        Compression::Gzip => Box::new(flate2::read::MultiGzDecoder::new(counting)),
-        other => return Err(FlashError::Unsupported(format!("Komprimierung {other:?}"))),
-    };
+    let mut reader = decoder(job.compression, counting)?;
 
     // --- schreiben ---
     on_event(FlashEvent::Stage {
@@ -453,14 +456,25 @@ pub fn write_and_verify<D: Device>(
     Ok(FlashReport { written, sha256 })
 }
 
+/// Entpackt „im Fluss“: Es wird nie das ganze entpackte Image auf die Platte geschrieben.
+fn decoder<'a, R: Read + 'a>(c: Compression, inner: R) -> Result<Box<dyn Read + 'a>, FlashError> {
+    Ok(match c {
+        Compression::None => Box::new(inner),
+        // Multi…: manche Dateien bestehen aus mehreren hintereinandergehängten Teilen.
+        Compression::Gzip => Box::new(flate2::read::MultiGzDecoder::new(inner)),
+        Compression::Xz => Box::new(xz2::read::XzDecoder::new_multi_decoder(inner)),
+        Compression::Zstd => Box::new(
+            ruzstd::decoding::StreamingDecoder::new(inner)
+                .map_err(|e| FlashError::Io(format!("zstd: {e}")))?,
+        ),
+    })
+}
+
 /// Für eine hilfreiche Fehlermeldung: ab welchem Byte weicht der Stick ab?
 /// (Nur im Fehlerfall, deshalb darf es langsam sein.)
 fn find_first_difference<D: Device>(dev: &mut D, job: &FlashJob, written: u64) -> io::Result<u64> {
     let file = File::open(&job.image)?;
-    let mut src: Box<dyn Read> = match job.compression {
-        Compression::Gzip => Box::new(flate2::read::MultiGzDecoder::new(BufReader::new(file))),
-        _ => Box::new(BufReader::new(file)),
-    };
+    let mut src = decoder(job.compression, BufReader::new(file)).map_err(io::Error::other)?;
     dev.seek(SeekFrom::Start(0))?;
     let mut a = AlignedBuf::new(CHUNK);
     let mut b = vec![0u8; CHUNK];
