@@ -124,10 +124,299 @@ Das Durchlaufen der Listing-Schritte ist rekursiv. Ein `async fn`, das sich selb
 ein Future, das sich selbst enthält, also unendliche Größe. `Box::pin` legt das innere Future auf
 den Heap; dann ist nur ein Zeiger im äußeren Future gespeichert.
 
-## Offene Punkte für spätere Phasen
+### E16 – GPG mit Sequoia und nativem Krypto-Backend
+GPG-Prüfung in der App selbst, statt das `gpg`-Programm aufzurufen: Unter Windows ist `gpg` meist
+nicht installiert, und die Ausgabe von `gpg` zu parsen ist fehleranfällig. Sequoia ist eine
+OpenPGP-Implementierung in Rust. Als Krypto-Backend nehmen wir das jeweils native:
+**CNG** unter Windows (in Windows eingebaut), **Nettle** unter Linux (Systembibliothek, über GnuTLS
+praktisch überall vorhanden). Das reine Rust-Backend stuft Sequoia selbst als experimentell ein.
+
+### E17 – Vertrauensmodell: nur gepinnte Schlüssel
+Der Schlüsselbund wird bei jeder Prüfung frisch über HTTPS geladen, aber **nur Zertifikate mit
+einem Fingerprint aus dem Katalog** werden übernommen. Eine Signatur zählt nur, wenn sie
+kryptografisch stimmt und von genau so einem Schlüssel stammt. Ein Angreifer, der den Schlüsselbund
+oder die Signatur austauscht, scheitert also an den gepinnten Fingerprints.
+
+Bei Clearsign-Dateien (Fedora) wird **nur der Text verwendet, den Sequoia als signiert bestätigt**,
+nie der Rohtext. Sonst könnte jemand Zeilen außerhalb des signierten Bereichs einschmuggeln.
+
+### E18 – Ausnahme: v3-Signaturen (openSUSE)
+openSUSE signiert noch im alten v3-Format, das Sequoia seit 2021 ablehnt. Die Kryptografie
+(RSA-4096 + SHA-512) ist stark, veraltet ist nur das Paketformat (keine geschützten Metadaten,
+64-Bit-Schlüssel-ID). Weil wir ohnehin nur den gepinnten Schlüssel zulassen, ist das vertretbar.
+Die Ausnahme ist **pro Variante** im Katalog anzuschalten (`allow_v3`) und erzeugt eine Warnung.
+Die Alternative wäre, bei openSUSE ganz auf GPG zu verzichten, und das wäre schlechter.
+
+### E19 – Reihenfolge: erst Signatur, dann Download
+Prüfsummendatei und Signatur sind ein paar KB groß, das Image mehrere GB. Deshalb zuerst die
+Signatur prüfen: Ist sie falsch, wird **kein einziges Byte** des Images geladen (ist per Test
+abgesichert). Erst danach wird heruntergeladen. Der Hash läuft während des Downloads mit, sodass
+die fertige Datei nicht noch einmal gelesen werden muss. Bei falschem Hash wird die Datei sofort
+gelöscht.
+
+### E20 – Fortsetzen mit `Range` + `If-Range`
+Abgebrochene Downloads bleiben als `.part` liegen, daneben steht in `.part.json` die URL plus
+ETag/Last-Modified. Beim nächsten Versuch wird der vorhandene Teil eingelesen (für den Hash) und
+ab dort weitergeladen. `If-Range` stellt sicher, dass der Server nur dann ab der Mitte liefert,
+wenn sich die Datei nicht geändert hat. Sonst schickt er sie komplett neu, und wir beginnen von vorn.
+
+### E21 – Binärdaten nie als Text behandeln
+Signaturen (`.gpg`, `.sig`) und manche Schlüsselbünde sind binär. Der erste Entwurf hat sie über
+`get_text` geladen, was ungültiges UTF-8 ersetzt und die Signatur zerstört. Deshalb gibt es
+`get_bytes` für alles, was geprüft wird; `get_text` ist nur für HTML-Listings und JSON da.
+
+### E22 – Dateinamen vom Server misstrauen
+Der Dateiname kommt vom Server. Bevor er als Pfad verwendet wird, wird geprüft: kein `/` oder `\`,
+kein `..`, kein versteckter Name, keine unter Windows verbotenen Zeichen. Sonst könnte ein
+manipulierter Server z. B. `../../.bashrc` überschreiben (Path Traversal).
+
+### E23 – Laufwerke: Rohdaten und Urteil getrennt
+Der Plattform-Code (`device/linux.rs`, `device/windows.rs`) sammelt nur **Rohdaten**. Ob ein
+Laufwerk beschrieben werden darf, entscheidet allein `device::classify`: eine reine Funktion ohne
+Systemzugriff, für Linux und Windows dieselbe, vollständig getestet. Prinzip **„Default deny“**:
+Ein Laufwerk ist nur wählbar, wenn *jede* Regel erfüllt ist. Fehlt eine Information, gilt das
+Laufwerk als verboten (unter Windows z. B. unbekanntes `IsBoot` → als System behandelt).
+
+Die Regeln in der Reihenfolge ihrer Priorität:
+1. **System:** trägt `/`, `/boot`, `/home` … oder Swap (Linux), bzw. `IsBoot`, `IsSystem` oder die
+   Auslagerungsdatei (Windows). Gilt **auch für USB**, z. B. wenn Linux gerade vom Stick läuft.
+2. **Nur USB** (Bus-Typ).
+3. **Zweite, unabhängige Prüfung:** Linux: Gerätename `sdX`. Windows: Das Systemlaufwerk
+   (`%SystemDrive%`, meist `C:`) liegt nicht darauf, unabhängig von dem, was Windows bei
+   `IsBoot`/`IsSystem` meldet.
+4. Nicht schreibgeschützt, nicht von LVM/RAID/LUKS belegt, Medium eingelegt.
+5. Höchstens 2 TB, ohne Ausnahme.
+6. **Externe Festplatten** (nicht als Wechselmedium gemeldet und über 128 GB) sind ausgeblendet,
+   außer man setzt ausdrücklich das Häkchen. Auf solchen Platten liegen oft Backups. Viele moderne
+   Sticks melden sich übrigens *nicht* als Wechselmedium, deshalb reicht dieses Merkmal allein
+   nicht als Regel.
+
+### E24 – Linux: `/sys` statt `lsblk`
+`/sys/block` ist die stabile Kernel-Schnittstelle (die auch `lsblk` liest). So hängen wir nicht von
+einem externen Programm und dessen Ausgabeformat ab. Eingebundene Partitionen werden über die
+**Gerätenummer** (Major:Minor) mit `/proc/self/mountinfo` abgeglichen, nicht über Pfadnamen, die
+auch `/dev/disk/by-uuid/…` heißen können. LVM/LUKS/RAID wird über `holders/` erkannt; trägt so ein
+Gerät `/` oder `/home`, gilt das USB-Laufwerk als Systemlaufwerk.
+
+### E25 – Windows: WMI (`MSFT_Disk`)
+`MSFT_Disk` liefert `BusType`, `IsBoot` und `IsSystem` direkt; dazu kommen `MSFT_Partition`
+(Laufwerksbuchstaben), `Win32_DiskDrive` (Wechselmedium) und `Win32_PageFileUsage`. Die Umrechnung
+in Rohdaten (`windows_map.rs`) ist reiner Code und wird auch unter Linux getestet. Eine WMI-Verbindung
+darf den Thread nicht wechseln (COM), deshalb läuft die Erkennung über `spawn_blocking`.
+
+Stolperstein: `wmi` erlaubt `windows`/`windows-core` in einem Versionsbereich, und Cargo hat eine
+inkompatible Mischung gewählt (0.61 + 0.62). Gelöst im `Cargo.lock` (beide auf dieselbe Version wie
+Tauri); das CI baut mit `--locked`, damit das nicht unbemerkt verloren geht.
+
+### E26 – Aktualisieren per Abfrage alle 2 s
+Solange der Auswahldialog offen ist, wird die Liste alle 2 Sekunden neu eingelesen. Echte
+Hotplug-Benachrichtigungen (udev bzw. `WM_DEVICECHANGE`) wären eleganter, sind aber pro System
+aufwendig. Ein Scan dauert nur Millisekunden. Vor dem Schreiben (Phase 5) wird das Laufwerk
+ohnehin noch einmal frisch geprüft.
+
+### E27 – Entwickler-Schalter nur in Debug-Builds
+`BOOTFORGE_DEV_SYSROOT` lässt die App einen nachgebauten `/sys`-Baum lesen, um die GUI ohne echten
+Stick zu testen. Der Code dafür steht hinter `cfg(debug_assertions)` und ist in Release-Builds gar
+nicht vorhanden, damit niemand einer echten Installation ein falsches Laufwerk unterschieben kann.
+
+### E28 – CI unter Linux und Windows
+GitHub Actions baut und testet jeden Push auf `ubuntu-24.04` und `windows-latest`. So wird auch
+der Windows-Code (WMI, CNG) wirklich ausgeführt. `.gitattributes` erzwingt LF-Zeilenenden und
+schützt die Signatur-Fixtures: Würde Git sie unter Windows nach CRLF umwandeln, wären die echten
+Signaturen ungültig.
+
+### E29 – Dreifache Prüfung beim Schreiben
+1. **Vor dem Schreiben** wird die Image-Datei noch einmal gehasht. Stimmt der Hash nicht, wird der
+   Stick gar nicht angefasst.
+2. **Während des Schreibens** wird die Datei erneut gehasht. Wurde sie zwischen Prüfung und Schreiben
+   ausgetauscht (TOCTOU: „time of check to time of use“), wird der Anfang des Sticks genullt, damit
+   er nicht mit Mischdaten bootet.
+3. **Danach wird zurückgelesen** und mit dem Geschriebenen verglichen. Das erkennt defekte Sticks und
+   **gefälschte** Sticks, die mehr Speicher vorgeben, als sie haben (sie überschreiben dann den Anfang
+   wieder). Der Test `fake_capacity_stick_detected` simuliert genau das.
+
+Schreibzugriffe gehen am Cache vorbei (Linux `O_DIRECT`, Windows `FILE_FLAG_NO_BUFFERING`), sonst
+käme das Zurücklesen aus dem RAM und würde nichts beweisen. Dafür müssen Puffer im Speicher auf
+4096 Bytes ausgerichtet sein (`AlignedBuf`), und jeder Schreibzugriff muss ein Vielfaches davon
+sein. Der letzte Block wird deshalb mit Nullen aufgefüllt.
+
+### E30 – Laufwerk unmittelbar vor dem Schreiben neu prüfen
+Zwischen Auswahl und „Forge!“ kann viel passieren. Unter Linux bekommt ein neu eingesteckter Stick
+sogar oft denselben Namen `/dev/sdb`. `device::recheck` scannt deshalb neu, wendet alle Regeln erneut
+an und vergleicht Größe, Name und Seriennummer. Diese Prüfung läuft **in dem Prozess, der schreibt**
+(unter Linux also im Root-Helper), und verlässt sich nicht auf das, was die GUI schickt.
+
+### E31 – Bestätigung durch Abtippen, im Backend erneut geprüft
+Ein versehentlicher Klick darf keinen Stick löschen, deshalb muss man den Namen des Sticks abtippen.
+Der Command `forge` prüft den eingetippten Namen **noch einmal selbst**. Ein Fehler in der GUI kann die
+Bestätigung so nicht aushebeln. Nach einem Fehler gibt es bewusst kein „Nochmal“, nur „Zurück“:
+Jeder Schreibversuch braucht eine neue Bestätigung.
+
+### E32 – Linux: kleiner Root-Helper über pkexec
+Die GUI läuft als normaler Nutzer. WebKitGTK mit Root-Rechten wäre eine riesige Angriffsfläche.
+Geschrieben wird von `bootforge-flash-helper`: kein Netzwerk, keine GUI, eine Aufgabe. Er bekommt die
+Anfrage als JSON über stdin und meldet Fortschritt als JSON-Zeilen. Er **misstraut** der Anfrage:
+- Das Laufwerk wird neu erkannt und muss alle Regeln erfüllen.
+- Das Image muss eine normale Datei sein (kein Symlink) und dem aufrufenden Nutzer gehören
+  (`PKEXEC_UID`). Sonst könnte man ihn benutzen, um z. B. `/etc/shadow` auf einen Stick zu kopieren.
+  Schon der Hash-Zwang verhindert das (man müsste den Hash der geheimen Datei kennen); die
+  Eigentümerprüfung ist eine zweite Sperre.
+- Schließt die App stdin (auch bei einem Absturz), bricht der Helper ab. Ein Root-Prozess soll nicht
+  verwaist weiterschreiben.
+
+Die polkit-Regel verlangt jedes Mal das Admin-Passwort (`auth_admin`, kein `_keep`). Vor dem
+Öffnen werden alle Partitionen ausgehängt, dann wird das Gerät mit `O_EXCL` geöffnet: Benutzt noch
+irgendetwas das Gerät, verweigert der Kernel das, eine letzte Absicherung.
+
+### E33 – Windows: Admin-Manifest nur im Release-Build
+Laut Anforderung braucht die App unter Windows Administratorrechte (Manifest `requireAdministrator`).
+Das gilt nur für Release-Builds, sonst müsste man schon zum Entwickeln jedes Mal ein Admin-Terminal
+öffnen. Ohne Adminrechte meldet die App beim Schreiben einen verständlichen Fehler. Vor dem Schreiben
+werden alle Volumes des Sticks gesperrt (`FSCTL_LOCK_VOLUME`) und ausgehängt; die Sperren bleiben bis
+zum Ende offen, sonst hängt Windows sie sofort wieder ein.
+
+### E34 – Abhängigkeiten im Debug-Build optimieren
+`[profile.dev.package."*"] opt-level = 2`: Ohne diese Einstellung hasht ein Debug-Build nur ~15 MB/s,
+und ein Test mit einem echten Image dauert Minuten. Der eigene Code bleibt unoptimiert, damit er
+schnell kompiliert und gut zu debuggen ist.
+
+### E35 – `rust-version` bestimmt, welche Paketversionen Cargo wählt
+Mit `resolver = "3"` wählt Cargo nur Paketversionen, die mit der angegebenen Mindest-Rust-Version
+(`rust-version`) funktionieren. Bei `1.85` blieb Tauri deshalb auf 2.11, weil 2.12 Rust 1.90 braucht.
+Die npm-Pakete waren aber schon 2.12, und `tauri dev` meldete einen Versions-Mismatch. Jetzt steht
+dort `1.90`, und Rust- und npm-Seite von Tauri sind wieder auf derselben Minor-Version.
+
+### E36 – Windows-ISOs lädt der Nutzer selbst herunter, BootForge prüft sie
+Microsoft bietet keinen offenen Download-Link an. Die Download-Seite fordert die Links über eine
+Schnittstelle mit Bot-Schutz an. Den zu umgehen wäre technisch möglich, verstößt aber gegen
+Microsofts Regeln und kann jederzeit brechen, deshalb machen wir das bewusst **nicht**. Stattdessen:
+1. „Download-Seite öffnen“ öffnet Microsofts Seite im Browser des Nutzers.
+2. Der Nutzer wählt die heruntergeladene ISO aus.
+3. BootForge lädt dieselbe Seite über HTTPS und liest die **von Microsoft veröffentlichte Tabelle
+   der SHA-256-Werte** aus (Katalog: `"checksum": {"type": "page_listing"}`). Steht der Hash der
+   Datei nicht darin, wird nicht geschrieben. Ist die Tabelle leer (Seite umgebaut), ist das ein
+   Fehler und kein „Durchwinken“.
+
+### E37 – „Eigenes Image“: Prüfsumme ist Pflicht
+Für Images, die nicht im Katalog stehen, gibt der Nutzer die Prüfsumme des Herstellers ein (SHA-256
+oder SHA-512, MD5 nur mit Warnung). Ohne Prüfsumme lässt sich nichts schreiben. Das ist dieselbe Regel
+wie bei Downloads: Beschädigte oder manipulierte Dateien fallen so auf. Der Schreibmodus wird
+automatisch erkannt (Windows-Installer oder 1:1). Bei einem ISO ohne Bootsektor warnt die GUI.
+
+### E38 – Windows-Stick: GPT + FAT32 statt 1:1-Abbild
+Windows-ISOs sind keine Hybrid-ISOs: 1:1 auf einen Stick geschrieben, startet davon kein PC. BootForge
+baut den Stick deshalb wie Rufus im UEFI-Standardmodus: GPT mit einer FAT32-Partition
+(„Microsoft Basic Data“) und alle Dateien der ISO darauf. UEFI-Firmware startet `efi\boot\bootx64.efi`
+direkt von FAT32, auch mit Secure Boot, weil die Datei von Microsoft signiert ist.
+**FAT32 kann keine Dateien über 4 GB speichern**, `install.wim` ist aber meist größer. Sie wird
+mit `wimlib-imagex split` in `install.swm`, `install2.swm` … zerlegt, die das Windows-Setup direkt
+lesen kann. Die Alternative NTFS bräuchte einen eigenen NTFS-Treiber für die Firmware
+(Rufus' „UEFI:NTFS“) und wäre viel komplexer. Folge: nur UEFI-Boot, kein reines BIOS. Seit Windows 11
+ist UEFI ohnehin Pflicht.
+
+### E39 – Eigenes FAT32 statt Bibliothek
+Erst wurde die Bibliothek `fatfs` verwendet. `fsck.vfat` meldete danach Fehler: Sie schreibt
+Langnamen-Einträge vor „.“ und „..“, und FSInfo bleibt uninitialisiert. Weil die komplette Dateiliste
+vorher bekannt ist, ist ein eigener „Planer“ einfach. Er berechnet alle Metadaten (Bootsektor, FATs,
+Verzeichnisse) vorab und legt jede Datei zusammenhängend ab. Danach werden nur noch Bytes an
+berechnete Stellen geschrieben. Das ist leicht zu prüfen: Beim Zurücklesen werden die Metadaten Byte
+für Byte und jede Datei per SHA-256 verglichen. Getestet wird gegen die Standardwerkzeuge
+`fsck.vfat`, `sgdisk -v` und `wimlib-imagex join`.
+
+### E40 – Block-Cache für den Direktzugriff
+Am Betriebssystem-Cache vorbei (`O_DIRECT` / `FILE_FLAG_NO_BUFFERING`) muss jeder Zugriff
+sektor-ausgerichtet sein. Partitionstabelle und FAT-Strukturen sind aber kleine, krumme Stücke.
+`BlockCache` sammelt sie in 1-MiB-Blöcken und merkt sich pro 512-Byte-Sektor „gültig“ und „geändert“.
+Fortlaufende Dateiinhalte kommen so ganz ohne vorheriges Lesen aus.
+
+### E41 – ISO einbinden: ohne fremde Programme und ohne Austausch-Lücke
+- **Linux** (im Root-Helper): Der Helper öffnet die Datei selbst (`O_NOFOLLOW`), prüft Besitzer
+  und Fingerabdruck (Gerät, Inode, Größe, Änderungszeit von vor der Hash-Prüfung) und hängt **genau
+  diesen Dateigriff** per `LOOP_SET_FD` an ein Loop-Gerät. Mit `mount(2)` wird es dann eingebunden,
+  schreibgeschützt und mit `nosuid,nodev,noexec`, in ein Verzeichnis unter `/run`, das nur root
+  lesen kann. Wer den Pfad zwischen Prüfung und Einbinden austauscht, fällt auf (`ImageChanged`).
+  Das Loop-Gerät löst sich beim Aushängen selbst (`LO_FLAGS_AUTOCLEAR`).
+- **Windows**: `Mount-DiskImage -Access ReadOnly` (PowerShell, eingebaut). Der Fingerabdruck ist dort
+  Größe + Änderungszeit.
+- Nach dem Kopieren wird der Fingerabdruck erneut verglichen. Hat sich die ISO geändert, wird der
+  Stick unbrauchbar gemacht.
+
+### E42 – Windows-ISOs am UDF-Dateisystem erkennen
+Microsofts ISOs sind „UDF-Bridge“-Images: Alle Dateien stehen nur im UDF-Teil, der ISO9660-Teil
+enthält nur eine `README.TXT` („This disc contains a UDF file system …“). BootForge liest deshalb das
+UDF-Hauptverzeichnis selbst (`local::udf`, ca. 150 Zeilen nach ECMA-167) und sucht `sources/` und
+`bootmgr`. Die Testdatei `windows-udf-only.iso` hat genau diesen Aufbau (`genisoimage -udf -hide …`).
+
+### E43 – Datei-Dialog und Browser öffnen nur im Backend
+`tauri-plugin-dialog` und `tauri-plugin-opener` werden nur aus Rust benutzt. In
+`capabilities/default.json` steht weiterhin nur `core:default`, das Frontend kann also weder Dateien
+lesen noch beliebige Programme oder Adressen öffnen. „Download-Seite öffnen“ übergibt nur die
+Varianten-ID, die Adresse kommt aus dem Katalog (und muss HTTPS sein). „Forge!“ mit eigener Datei
+akzeptiert nur Pfade, die vorher im Backend geprüft wurden. Beim Schreiben wird ohnehin noch einmal
+gehasht.
+
+### E44 – Privates Arbeitsverzeichnis für Zwischendateien
+Die aufgeteilten `.swm`-Dateien entstehen in einem neu angelegten Verzeichnis mit Zufallsnamen und
+Modus 0700, unter Linux in `/var/tmp` (liegt auf der Platte, `/tmp` ist oft eine RAM-Disk). Ein fester
+Name wie `/tmp/bootforge` wäre gefährlich, weil der Helper als root läuft: Ein anderer Benutzer könnte
+das Verzeichnis vorher anlegen und Symlinks hineinlegen, und root würde dann fremde Dateien
+überschreiben.
+
+### E45 – Komprimierte Images: gzip, xz, zstd im Fluss
+Eigene Images sind oft komprimiert (Raspberry Pi: `.img.xz`). Sie werden beim Schreiben im Fluss
+entpackt (`flate2`, `xz2`, `ruzstd`). Die Prüfsumme gilt, wie bei den Herstellern üblich, für die
+komprimierte Datei. `xz2` kompiliert liblzma 5.2 mit. Die Versionen 5.6.0/5.6.1 mit der Hintertür von
+2024 sind nicht betroffen.
+
+### E46 – Linux: .deb und .rpm, kein AppImage
+Ein AppImage ist eine Datei, die sich beim Start per FUSE selbst einbindet. Der Root-Helper müsste
+dann aus diesem Einhängepunkt gestartet werden. Den darf root aber standardmäßig gar nicht lesen
+(FUSE ohne `allow_other`). Außerdem nennt die polkit-Regel einen festen Pfad. Das .deb/.rpm
+installiert den Helper nach `/usr/lib/bootforge/`, die polkit-Regel nach
+`/usr/share/polkit-1/actions/` und zieht `wimtools`/`wimlib-utils` und pkexec als Abhängigkeiten
+mit. Gebaut wird das .deb auf Ubuntu 22.04, damit es auch auf älteren Systemen installierbar ist:
+Die Mindestversionen der Bibliotheken richten sich nach dem System, auf dem gebaut wurde.
+
+### E47 – Release-App startet nur den Helper aus `/usr/lib/bootforge`
+Im Debug-Build sucht die App den Helper auch neben sich selbst (bequem beim Entwickeln). Im
+Release-Build nur unter `/usr/lib/bootforge/`. Dorthin kann nur root schreiben, und dieser Pfad steht
+in der polkit-Regel. Läge die App z. B. in einem vom Benutzer beschreibbaren Ordner, könnte sonst
+jemand dort einen veränderten „Helper“ ablegen. Der würde mit Administratorrechten laufen, sobald
+der Benutzer das Passwort eingibt.
+
+### E48 – wimlib im Windows-Installer: Hash festgeschrieben
+wimlib veröffentlicht keine Prüfsummen oder Signaturen. Der SHA-256 des Windows-Pakets wurde beim
+ersten Download festgehalten („Trust on first use“) und steht in `fetch-wimlib.ps1`. Jeder spätere
+Download, lokal oder im CI, muss exakt passen. So kann eine später manipulierte Datei auf dem Server
+nicht unbemerkt in unseren Installer gelangen. wimlib steht unter der GPLv3+, genau wie BootForge.
+Deshalb liegen die Lizenztexte im Installer, und jedes Release enthält den Quelltext
+(`wimlib-1.14.5.tar.gz`). [THIRD-PARTY.md](../THIRD-PARTY.md) listet alle Abhängigkeiten mit
+Lizenz und wird mit `scripts/third_party.py` erzeugt.
+
+### E49 – Release als Entwurf, mit SHA256SUMS
+Der Release-Workflow veröffentlicht nichts selbst, sondern legt einen Entwurf an. Ein Mensch prüft
+und veröffentlicht. `SHA256SUMS.txt` über alle Dateien gibt Nutzern dieselbe Prüfmöglichkeit, die
+BootForge selbst bei Distributionen verlangt. Der Windows-Installer ist (noch) nicht code-signiert:
+Ein Zertifikat kostet Geld, SmartScreen warnt deshalb beim ersten Start.
+
+### E50 – Speicherplatz vor dem Download prüfen, Cache sichtbar machen
+Sobald die Größe bekannt ist (`Content-Length`), wird geprüft, ob die Datei plus 256 MB Reserve auf
+das Laufwerk passt. Ein Abbruch bei 95 % wegen voller Platte wäre ärgerlich. Heruntergeladene Images
+bleiben im Cache (zweiter Stick ohne neuen Download). Unten rechts zeigt die App, wie viel Platz das
+belegt, und kann ihn leeren. Gelöscht werden nur Dateien direkt im Cache-Ordner, Links werden nicht
+verfolgt.
+
+## Offene Punkte
+- **Kompatibilität des Online-Katalogs:** Wegen `deny_unknown_fields` lehnt eine ältere App einen
+  Katalog mit neuen Feldern ab (z. B. `allow_v3`) und fällt auf ihren Cache zurück. Neue Felder darf
+  der Online-Katalog deshalb erst bekommen, wenn die passende App-Version veröffentlicht ist.
+  Langfristig: `schema_version` erhöhen und pro Version eine eigene Datei anbieten.
+- Download-Ordner wählbar; alte Versionen automatisch aufräumen.
 - GitHub Action im Katalog-Repo, die `resolve_all` regelmäßig laufen lässt und bei kaputten
-  Einträgen ein Issue öffnet (Phase 7).
+  Einträgen ein Issue öffnet.
 - TypeScript-Typen werden noch von Hand gepflegt (`src/lib/types.ts`). Später eventuell mit
   `specta`/`ts-rs` generieren.
-- Windows: `requireAdministrator`-Manifest in `build.rs` (Phase 5).
-- Linux: polkit-Policy + Helper-Binary (Phase 5).
+- Code-Signatur für den Windows-Installer, Auto-Update (Tauri-Updater mit signierten Updates).
+- Katalog-Zweig `windows-manual-other` beim Veröffentlichen von 0.1.0 nach `main` mergen (die
+  App-Version auf `main` ist die erste, ältere gibt es nicht; siehe docs/RELEASE.md).
+- Windows-Sticks für reine BIOS-PCs (MBR + NTFS + Bootsektor) – bewusst nicht geplant, siehe E38.

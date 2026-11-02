@@ -2,25 +2,65 @@
   import { onMount } from "svelte";
   import { api } from "./lib/api";
   import { i18n, languages, t } from "./lib/i18n.svelte";
-  import type { AppError, CatalogResponse, Distro, ResolveState, Variant } from "./lib/types";
+  import type { AppError, CatalogResponse, Distro, Drive, LocalImage, ResolveState, Variant } from "./lib/types";
   import DistroList from "./components/DistroList.svelte";
-  import VariantPanel from "./components/VariantPanel.svelte";
+  import VariantPanel, { OWN_KEY } from "./components/VariantPanel.svelte";
   import ForgeBar from "./components/ForgeBar.svelte";
   import Stepper from "./components/Stepper.svelte";
+  import PreparePanel from "./components/PreparePanel.svelte";
+  import UsbDialog from "./components/UsbDialog.svelte";
+  import ConfirmDialog from "./components/ConfirmDialog.svelte";
+  import { createJob, createLocalJob, run, type Job } from "./lib/job.svelte";
 
   let response = $state<CatalogResponse | null>(null);
+  let version = $state("");
   let error = $state<AppError | null>(null);
 
   let selectedDistro = $state<Distro | null>(null);
   let selectedVariant = $state<Variant | null>(null);
 
+  /** „Eigenes Image“ gewählt (statt einer Distribution aus dem Katalog). */
+  let ownSelected = $state(false);
+
   /** Ergebnis der Versionsermittlung je Varianten-ID. */
   let resolved = $state<Record<string, ResolveState>>({});
 
-  // Abgeleiteter Zustand: Schritt 1 ist erst erledigt, wenn die neueste Version feststeht.
-  const currentStep = $derived(selectedVariant && resolved[selectedVariant.id]?.status === "ok" ? 2 : 1);
+  /** Selbst mitgebrachte, geprüfte Dateien: je Variante mit manueller Quelle bzw. `OWN_KEY`. */
+  let localImages = $state<Record<string, LocalImage>>({});
+
+  /** Laufender oder zuletzt gelaufener Download (dann wird die Fortschrittsansicht gezeigt). */
+  let job = $state<Job | null>(null);
+
+  let selectedDrive = $state<Drive | null>(null);
+  let usbDialogOpen = $state(false);
+  /** Mit welcher Option wurde der Stick gewählt? (Muss beim Schreiben identisch geprüft werden.) */
+  let selectedWithHdds = $state(false);
+  /** Offener Bestätigungsdialog: Titel des Images für die Anzeige. */
+  let confirmFor = $state<string | null>(null);
+
+  const resolvedImage = $derived.by(() => {
+    const r = selectedVariant && resolved[selectedVariant.id];
+    return r?.status === "ok" ? r.image : null;
+  });
+
+  /** Kommt das Image aus einer eigenen Datei? Dann unter diesem Schlüssel in `localImages`. */
+  const localKey = $derived(
+    ownSelected ? OWN_KEY : selectedVariant?.source.type === "manual" ? selectedVariant.id : null,
+  );
+  const localImage = $derived(localKey ? (localImages[localKey] ?? null) : null);
+  const imageReady = $derived(localKey ? !!localImage : !!resolvedImage);
+  const imageSize = $derived(localImage?.acquired.size ?? resolvedImage?.size ?? null);
+
+  // Abgeleiteter Zustand: Schritt 1 ist erst erledigt, wenn das Image feststeht (neueste Version
+  // ermittelt bzw. eigene Datei geprüft), Schritt 2, wenn ein Stick gewählt ist, der groß genug ist.
+  const driveFits = $derived(!!selectedDrive && (!imageSize || selectedDrive.size >= imageSize));
+  const currentStep = $derived(!imageReady ? 1 : driveFits ? 3 : 2);
 
   onMount(async () => {
+    api
+      .appInfo()
+      .then((i) => (version = i.version))
+      .catch(() => {});
     try {
       response = await api.getCatalog();
       const first = response.catalog.distros[0];
@@ -31,6 +71,7 @@
   });
 
   function pickDistro(d: Distro) {
+    ownSelected = false;
     if (selectedDistro?.id !== d.id) {
       selectedDistro = d;
       selectedVariant = null;
@@ -38,11 +79,50 @@
     }
   }
 
+  function pickOwn() {
+    ownSelected = true;
+    selectedDistro = null;
+    selectedVariant = null;
+  }
+
+  function setLocal(key: string, img: LocalImage | null) {
+    if (img) localImages[key] = img;
+    else delete localImages[key];
+  }
+
   function pickVariant(v: Variant) {
     selectedVariant = v;
+    // Manuelle Quelle (Windows): Es gibt nichts zu ermitteln – die Datei bringt der Nutzer mit.
+    if (v.source.type === "manual") return;
     // Schon erfolgreich ermittelt oder gerade am Laden? Dann nicht nochmal fragen.
     const current = resolved[v.id];
     if (!current || current.status === "error") resolveVariant(v.id);
+  }
+
+  function startForge(confirmName: string) {
+    const title = confirmFor;
+    confirmFor = null;
+    if (!selectedDrive || !title) return;
+    const target = {
+      drive: $state.snapshot(selectedDrive),
+      showExternalHdds: selectedWithHdds,
+      confirmName,
+    };
+    if (localKey) {
+      if (!localImage) return;
+      job = createLocalJob(title, $state.snapshot(localImage), target);
+    } else {
+      if (!resolvedImage) return;
+      job = createJob(title, resolvedImage, target);
+    }
+    run(job);
+  }
+
+  function startDownload(title: string) {
+    const r = selectedVariant && resolved[selectedVariant.id];
+    if (r?.status !== "ok") return;
+    job = createJob(title, r.image);
+    run(job);
   }
 
   async function resolveVariant(id: string, force = false) {
@@ -62,7 +142,7 @@
         <use href="#bf-logo" />
       </svg>
       <div>
-        <h1>BootForge</h1>
+        <h1>BootForge{#if version}<span class="version">v{version}</span>{/if}</h1>
         <p>{t("app.tagline")}</p>
       </div>
     </div>
@@ -86,23 +166,69 @@
   {:else}
     {#if response.origin !== "remote"}
       <div class="banner" title={response.fallback_reason ?? ""}>
-        ⚠ {t(`catalog.fallback.${response.origin}`)}
+        ⚠ {response.remote_rejected ? t("catalog.fallback.incompatible") : t(`catalog.fallback.${response.origin}`)}
       </div>
     {/if}
-    <main>
-      <DistroList catalog={response.catalog} selected={selectedDistro} onpick={pickDistro} />
-      <VariantPanel
-        distro={selectedDistro}
-        selected={selectedVariant}
-        {resolved}
-        onpick={pickVariant}
-        onretry={(id) => resolveVariant(id, true)}
+    {#if job}
+      <PreparePanel {job} onclose={() => (job = null)} />
+    {:else}
+      <main>
+        <DistroList
+          catalog={response.catalog}
+          selected={selectedDistro}
+          onpick={pickDistro}
+          own={ownSelected}
+          onpickown={pickOwn}
+        />
+        <VariantPanel
+          distro={selectedDistro}
+          own={ownSelected}
+          selected={selectedVariant}
+          {resolved}
+          {localImages}
+          onpick={pickVariant}
+          onretry={(id) => resolveVariant(id, true)}
+          onlocal={setLocal}
+        />
+      </main>
+    {/if}
+    {#if usbDialogOpen}
+      <UsbDialog
+        selected={selectedDrive}
+        {imageSize}
+        minGb={selectedVariant?.min_usb_gb ?? null}
+        onselect={(d, withHdds) => {
+          selectedDrive = d;
+          selectedWithHdds = withHdds;
+          usbDialogOpen = false;
+        }}
+        onclose={(stillPresent) => {
+          if (!stillPresent) selectedDrive = null;
+          usbDialogOpen = false;
+        }}
       />
-    </main>
+    {/if}
+    {#if confirmFor && selectedDrive}
+      <ConfirmDialog
+        drive={selectedDrive}
+        imageLabel={confirmFor}
+        onconfirm={startForge}
+        oncancel={() => (confirmFor = null)}
+      />
+    {/if}
     <ForgeBar
+      onforge={(title) => (confirmFor = title)}
+      drive={selectedDrive}
+      {driveFits}
+      onchoosedrive={() => (usbDialogOpen = true)}
+      busy={job !== null}
+      ondownload={startDownload}
       distro={selectedDistro}
       variant={selectedVariant}
       resolve={selectedVariant ? resolved[selectedVariant.id] : undefined}
+      own={ownSelected}
+      local={localImage}
+      localMode={!!localKey}
       origin={response.origin}
       updated={response.catalog.updated}
     />
@@ -154,6 +280,12 @@
     margin: 0;
     font-size: 18px;
     letter-spacing: 0.3px;
+  }
+  .version {
+    margin-left: 8px;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-faint);
   }
   .brand p {
     margin: 0;

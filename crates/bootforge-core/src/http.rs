@@ -44,13 +44,16 @@ impl FetchError {
 pub enum Conditional {
     /// Der Server meldet „304 Not Modified“: unsere Kopie ist aktuell.
     NotModified,
-    /// Neuer Inhalt.
-    Body { text: String, etag: Option<String> },
+    /// Neuer Inhalt (Rohbytes – Signaturen und Schlüssel sind oft binär).
+    Body {
+        bytes: Vec<u8>,
+        etag: Option<String>,
+    },
 }
 
 /// Abstraktion über HTTP – siehe Modul-Doku.
 pub trait Fetcher: Send + Sync {
-    /// Text laden. Mit `etag` wird „If-None-Match“ gesendet.
+    /// Laden. Mit `etag` wird „If-None-Match“ gesendet.
     fn get(
         &self,
         url: &Url,
@@ -63,11 +66,11 @@ pub trait Fetcher: Send + Sync {
         url: &Url,
     ) -> impl Future<Output = Result<Option<u64>, FetchError>> + Send;
 
-    /// Text ohne ETag laden.
-    fn get_text(&self, url: &Url) -> impl Future<Output = Result<String, FetchError>> + Send {
+    /// Rohbytes ohne ETag laden (für Signaturen, Schlüssel, Prüfsummendateien).
+    fn get_bytes(&self, url: &Url) -> impl Future<Output = Result<Vec<u8>, FetchError>> + Send {
         async move {
             match self.get(url, None).await? {
-                Conditional::Body { text, .. } => Ok(text),
+                Conditional::Body { bytes, .. } => Ok(bytes),
                 // Ohne If-None-Match darf kein 304 kommen – falls doch, ist der Server kaputt.
                 Conditional::NotModified => Err(FetchError::Status {
                     url: url.to_string(),
@@ -75,6 +78,12 @@ pub trait Fetcher: Send + Sync {
                 }),
             }
         }
+    }
+
+    /// Text laden (für HTML-Listings und JSON). Ungültiges UTF-8 wird ersetzt –
+    /// deshalb NIE für Signaturen verwenden, dafür gibt es [`Fetcher::get_bytes`].
+    fn get_text(&self, url: &Url) -> impl Future<Output = Result<String, FetchError>> + Send {
+        async move { Ok(String::from_utf8_lossy(&self.get_bytes(url).await?).into_owned()) }
     }
 }
 
@@ -182,10 +191,7 @@ impl HttpClient {
                 });
             }
         }
-        Ok(Conditional::Body {
-            text: String::from_utf8_lossy(&body).into_owned(),
-            etag,
-        })
+        Ok(Conditional::Body { bytes: body, etag })
     }
 }
 
@@ -236,7 +242,7 @@ pub mod fake {
 
     #[derive(Default)]
     pub struct FakeFetcher {
-        pages: HashMap<String, (String, Option<String>)>,
+        pages: HashMap<String, (Vec<u8>, Option<String>)>,
         sizes: HashMap<String, u64>,
         offline: bool,
         /// Alle abgefragten URLs (zum Prüfen in Tests).
@@ -248,12 +254,17 @@ pub mod fake {
             Self::default()
         }
         pub fn page(mut self, url: &str, body: &str) -> Self {
-            self.pages.insert(url.into(), (body.into(), None));
+            self.pages
+                .insert(url.into(), (body.as_bytes().to_vec(), None));
+            self
+        }
+        pub fn page_bytes(mut self, url: &str, body: &[u8]) -> Self {
+            self.pages.insert(url.into(), (body.to_vec(), None));
             self
         }
         pub fn page_with_etag(mut self, url: &str, body: &str, etag: &str) -> Self {
             self.pages
-                .insert(url.into(), (body.into(), Some(etag.into())));
+                .insert(url.into(), (body.as_bytes().to_vec(), Some(etag.into())));
             self
         }
         pub fn size(mut self, url: &str, size: u64) -> Self {
@@ -280,8 +291,8 @@ pub mod fake {
             }
             match self.pages.get(url.as_str()) {
                 Some((_, Some(e))) if Some(e.as_str()) == etag => Ok(Conditional::NotModified),
-                Some((text, e)) => Ok(Conditional::Body {
-                    text: text.clone(),
+                Some((bytes, e)) => Ok(Conditional::Body {
+                    bytes: bytes.clone(),
                     etag: e.clone(),
                 }),
                 None => Err(FetchError::Status {

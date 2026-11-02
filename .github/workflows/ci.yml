@@ -1,0 +1,68 @@
+# Baut und testet BootForge bei jedem Push und Pull Request – unter Linux UND Windows.
+# So wird der Windows-Code (WMI, CNG-Krypto) geprüft, obwohl die Entwicklung unter Linux läuft.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# Ein neuer Push bricht den alten, noch laufenden Durchlauf desselben Branches ab.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Linux-Pakete (WebKitGTK für Tauri, Nettle für GPG)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          # gdisk/dosfstools/wimtools: Gegenproben der Windows-Stick-Tests (sgdisk -v, fsck.vfat, wimlib split/join)
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev libssl-dev nettle-dev clang gdisk dosfstools wimtools genisoimage
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - uses: Swatinem/rust-cache@v2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Frontend installieren
+        run: npm ci
+
+      - name: Frontend prüfen (TypeScript/Svelte)
+        run: npm run check
+
+      # Tauri bettet das gebaute Frontend beim Kompilieren ein → muss vor cargo laufen.
+      - name: Frontend bauen
+        run: npm run build
+
+      - name: Formatierung
+        if: runner.os == 'Linux'
+        run: cargo fmt --all -- --check
+
+      # --locked: Cargo.lock muss stimmen (u. a. ist dort windows-core für wmi festgelegt).
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+
+      - name: Tests
+        run: cargo test --workspace --locked

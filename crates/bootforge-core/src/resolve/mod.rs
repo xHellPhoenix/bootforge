@@ -75,6 +75,7 @@ pub struct ResolvedSignature {
     pub url: Option<Url>,
     pub fingerprints: Vec<String>,
     pub keyring_url: Option<Url>,
+    pub allow_v3: bool,
 }
 
 /// Was beim Ermitteln schiefgehen kann.
@@ -99,6 +100,8 @@ pub enum ResolveError {
     },
     #[error("die Quelle `{0}` wird erst in einer späteren Version unterstützt")]
     NotSupportedYet(&'static str),
+    #[error("dieses Image lädt man selbst herunter und wählt es dann aus")]
+    Manual,
 }
 
 impl ResolveError {
@@ -126,7 +129,8 @@ pub async fn resolve<F: Fetcher>(f: &F, variant: &Variant) -> Result<ResolvedIma
             asset_pattern,
             include_prereleases,
         } => github_release(f, repo, asset_pattern, *include_prereleases).await?,
-        Source::Microsoft { .. } => return Err(ResolveError::NotSupportedYet("microsoft")),
+        // Wird vom Nutzer selbst heruntergeladen – es gibt nichts zu ermitteln.
+        Source::Manual { .. } => return Err(ResolveError::Manual),
     };
 
     let image_dir = found
@@ -166,7 +170,9 @@ pub async fn resolve<F: Fetcher>(f: &F, variant: &Variant) -> Result<ResolvedIma
                 algorithm: *algorithm,
             }
         }
-        Checksum::File { .. } => unreachable!("vom Validator ausgeschlossen"),
+        Checksum::File { .. } | Checksum::PageListing { .. } => {
+            unreachable!("vom Validator ausgeschlossen")
+        }
         Checksum::FromSource { algorithm } => {
             let value = found.checksum.clone().ok_or(ResolveError::MissingField {
                 url: found.url.to_string(),
@@ -192,6 +198,7 @@ pub async fn resolve<F: Fetcher>(f: &F, variant: &Variant) -> Result<ResolvedIma
                 .transpose()?,
             fingerprints: s.fingerprints.clone(),
             keyring_url: s.keyring_url.as_deref().map(parse_https).transpose()?,
+            allow_v3: s.allow_v3,
         }),
     };
 

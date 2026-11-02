@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC
+ "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<!--
+  polkit-Regel für den BootForge-Flash-Helper. Wird vom .deb-Paket nach
+  /usr/share/polkit-1/actions/ installiert. Ohne diese Datei funktioniert pkexec trotzdem,
+  zeigt dann aber nur eine allgemeine Meldung („… als Superuser ausführen“).
+-->
+<policyconfig>
+  <vendor>BootForge</vendor>
+  <vendor_url>https://github.com/xHellPhoenix/bootforge</vendor_url>
+
+  <action id="io.github.xhellphoenix.bootforge.flash">
+    <description>Write a boot image to a USB drive</description>
+    <description xml:lang="de">Boot-Image auf einen USB-Stick schreiben</description>
+    <message>BootForge needs administrator rights to write to the USB drive. All data on the drive will be erased.</message>
+    <message xml:lang="de">BootForge braucht Administratorrechte, um auf den USB-Stick zu schreiben. Alle Daten auf dem Stick werden gelöscht.</message>
+    <icon_name>drive-removable-media</icon_name>
+    <defaults>
+      <!-- Jedes Mal nach dem Passwort fragen (kein „_keep“), auch für Administratoren. -->
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/lib/bootforge/bootforge-flash-helper</annotate>
+  </action>
+</policyconfig>

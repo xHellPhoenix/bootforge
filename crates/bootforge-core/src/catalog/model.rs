@@ -183,10 +183,15 @@ pub enum Source {
         #[serde(default)]
         include_prereleases: bool,
     },
-    /// Offizieller Microsoft-Download (Windows). Sprache wird in der App gewählt.
-    Microsoft {
-        /// Produkt.
-        product: WindowsProduct,
+    /// Der Nutzer lädt selbst herunter (z. B. Windows: Microsoft erlaubt keine automatisierten
+    /// Downloads). BootForge öffnet die Seite im Browser; danach wählt man die Datei aus und
+    /// BootForge prüft sie (siehe `checksum`).
+    Manual {
+        /// Offizielle Download-Seite (HTTPS).
+        download_page: String,
+        /// Regex für den erwarteten Dateinamen – nur als Hinweis bei der Auswahl.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        filename_pattern: Option<String>,
     },
 }
 
@@ -248,14 +253,6 @@ pub struct JsonFields {
     pub size: Option<String>,
 }
 
-/// Windows-Produkte.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum WindowsProduct {
-    Windows11,
-    Windows10,
-}
-
 /// Herkunft der Prüfsumme.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
@@ -277,8 +274,16 @@ pub enum Checksum {
         /// Hash-Algorithmus.
         algorithm: HashAlgorithm,
     },
-    /// Die Quelle (JSON-API, Microsoft) liefert die Prüfsumme direkt mit.
+    /// Die Quelle (JSON-API) liefert die Prüfsumme direkt mit.
     FromSource {
+        /// Hash-Algorithmus.
+        algorithm: HashAlgorithm,
+    },
+    /// Der Hash der Datei muss auf dieser HTTPS-Seite des Herstellers stehen
+    /// (z. B. Microsofts Tabelle „SHA-256 je Sprache“ auf der Download-Seite).
+    PageListing {
+        /// Seite mit der Liste (HTTPS).
+        url: String,
         /// Hash-Algorithmus.
         algorithm: HashAlgorithm,
     },
@@ -313,6 +318,10 @@ pub struct Signature {
     /// Die geladenen Schlüssel werden trotzdem gegen `fingerprints` geprüft.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub keyring_url: Option<String>,
+    /// Alte v3-Signaturpakete akzeptieren (Standard: nein). Nur setzen, wenn der Hersteller
+    /// nichts anderes liefert (openSUSE). Erzeugt eine Warnung bei der Katalogprüfung.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub allow_v3: bool,
 }
 
 /// Art der GPG-Signatur.
