@@ -422,12 +422,27 @@ mod udf {
             8 => b[1..].iter().map(|&c| c as char).collect(),
             16 => char::decode_utf16(
                 b[1..]
-                    .chunks_exact(2)
-                    .map(|c| u16::from_be_bytes([c[0], c[1]])),
+                    .as_chunks::<2>()
+                    .0
+                    .iter()
+                    .map(|&c| u16::from_be_bytes(c)),
             )
             .map(|c| c.unwrap_or(char::REPLACEMENT_CHARACTER))
             .collect(),
             _ => String::new(),
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        #[test]
+        fn decodes_both_name_encodings() {
+            assert_eq!(super::decode(b"\x08bootmgr"), "bootmgr");
+            // UTF-16 Big Endian (so schreibt z. B. Microsofts oscdimg Namen mit Umlauten)
+            let utf16: Vec<u8> = std::iter::once(16)
+                .chain("Größe".encode_utf16().flat_map(u16::to_be_bytes))
+                .collect();
+            assert_eq!(super::decode(&utf16), "Größe");
         }
     }
 }
