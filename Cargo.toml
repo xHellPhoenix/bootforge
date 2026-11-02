@@ -1,21 +1,21 @@
 # Cargo-Workspace: mehrere Rust-Crates teilen sich ein Cargo.lock und ein target/-Verzeichnis.
-#   crates/bootforge-core  -> die eigentliche Logik (Katalog, Download, Flashen ...), OHNE Tauri
+#   crates/sealflash-core  -> die eigentliche Logik (Katalog, Download, Flashen ...), OHNE Tauri
 #   src-tauri              -> die Desktop-App (dünne Schicht: Tauri-Commands + Events)
 # Später kommt noch ein kleiner Flash-Helper dazu (läuft unter Linux via pkexec mit Root-Rechten).
 [workspace]
 resolver = "3"
-members = ["crates/bootforge-core", "crates/bootforge-flash-helper", "src-tauri"]
+members = ["crates/sealflash-core", "crates/sealflash-flash-helper", "src-tauri"]
 
 [workspace.package]
-version = "0.1.1"
+version = "0.2.0"
 edition = "2024"
 license = "GPL-3.0-or-later"
-repository = "https://github.com/xHellPhoenix/bootforge"
+repository = "https://github.com/xHellPhoenix/sealflash"
 authors = ["xHellPhoenix"]
 rust-version = "1.90"
 
 [workspace.dependencies]
-bootforge-core = { path = "crates/bootforge-core" }
+sealflash-core = { path = "crates/sealflash-core" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2"

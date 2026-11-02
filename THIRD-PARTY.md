@@ -1,6 +1,6 @@
 # Software von Dritten
 
-BootForge steht unter der GPL-3.0-or-later. Es enthält bzw. nutzt folgende Software anderer
+SealFlash steht unter der GPL-3.0-or-later. Es enthält bzw. nutzt folgende Software anderer
 Projekte. Diese Datei wird mit `python3 scripts/third_party.py > THIRD-PARTY.md` erzeugt.
 
 ## wimlib (nur Windows-Installer)
@@ -8,7 +8,7 @@ Projekte. Diese Datei wird mit `python3 scripts/third_party.py > THIRD-PARTY.md`
 `wimlib-imagex.exe` und `libwim-15.dll` aus **wimlib 1.14.5** (<https://wimlib.net>), unverändert.
 Lizenz: GPL-3.0-or-later (libwim wahlweise LGPL-2.1-or-later). Die Lizenztexte liegen im
 Installationsordner unter `licenses/wimlib/`. Der vollständige Quelltext liegt jedem
-BootForge-Release als `wimlib-1.14.5.tar.gz` bei und ist unter
+SealFlash-Release als `wimlib-1.14.5.tar.gz` bei und ist unter
 <https://wimlib.net/downloads/wimlib-1.14.5.tar.gz> erhältlich.
 
 Unter Linux wird das wimlib der Distribution verwendet (Paket `wimtools` bzw. `wimlib-utils`).

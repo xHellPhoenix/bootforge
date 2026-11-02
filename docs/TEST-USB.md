@@ -7,15 +7,15 @@ Die automatischen Tests prüfen die Regeln mit nachgebauten Systemdaten. Ob die 
 ## Vorbereitung
 
 ```bash
-git clone https://github.com/xHellPhoenix/bootforge && cd bootforge
+git clone https://github.com/xHellPhoenix/sealflash && cd sealflash
 npm install
 ```
 
 Am schnellsten geht es ohne GUI mit dem Werkzeug `list_drives`. Es zeigt jedes Laufwerk mit Urteil:
 
 ```bash
-cargo run -p bootforge-core --example list_drives          # Standard
-cargo run -p bootforge-core --example list_drives -- --hdd  # inkl. externer Festplatten
+cargo run -p sealflash-core --example list_drives          # Standard
+cargo run -p sealflash-core --example list_drives -- --hdd  # inkl. externer Festplatten
 ```
 
 In der App: `npm run tauri dev`, dann unten auf „Stick wählen …“.

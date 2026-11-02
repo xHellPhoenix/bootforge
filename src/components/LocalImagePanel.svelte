@@ -4,7 +4,7 @@
   //   Microsofts veröffentlichte Prüfsummen geprüft.
   // - Ohne `variant` („Eigenes Image“): Datei auswählen + Prüfsumme vom Hersteller einfügen.
   // Erst nach erfolgreicher Prüfung gibt es das Ergebnis nach oben (`onverified`) – nur dann
-  // lässt sich „Forge!“ drücken.
+  // lässt sich „Flash!“ drücken.
   import { untrack } from "svelte";
   import { api } from "../lib/api";
   import { formatBytes } from "../lib/format";

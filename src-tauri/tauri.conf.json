@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "BootForge",
-  "version": "0.1.1",
-  "identifier": "io.github.xhellphoenix.bootforge",
+  "productName": "SealFlash",
+  "version": "0.2.0",
+  "identifier": "io.github.xhellphoenix.sealflash",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "BootForge",
+        "title": "SealFlash",
         "width": 960,
         "height": 680,
         "minWidth": 820,
@@ -34,7 +34,7 @@
     ],
     "category": "Utility",
     "shortDescription": "USB-Boot-Sticks ohne ISO-Suche",
-    "longDescription": "BootForge lädt die neueste Version einer Linux-Distribution oder von Windows direkt von der offiziellen Quelle, prüft sie und schreibt sie auf einen USB-Stick.",
+    "longDescription": "SealFlash lädt die neueste Version einer Linux-Distribution oder von Windows direkt von der offiziellen Quelle, prüft sie und schreibt sie auf einen USB-Stick.",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -44,6 +44,6 @@
     ],
     "copyright": "© 2026 xHellPhoenix – GPL-3.0-or-later",
     "license": "GPL-3.0-or-later",
-    "homepage": "https://github.com/xHellPhoenix/bootforge"
+    "homepage": "https://github.com/xHellPhoenix/sealflash"
   }
 }

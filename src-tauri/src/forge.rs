@@ -7,7 +7,7 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use bootforge_core::flash::{FlashEvent, FlashReport, FlashStage, ForgeRequest};
+use sealflash_core::flash::{FlashEvent, FlashReport, FlashStage, ForgeRequest};
 use tauri::ipc::Channel;
 
 use crate::error::AppError;
@@ -42,7 +42,7 @@ async fn platform_flash(
     let wrote = Arc::new(AtomicBool::new(false));
     let w = wrote.clone();
     let result = tauri::async_runtime::spawn_blocking(move || {
-        bootforge_core::flash::flash_drive(&req, &cancel, &mut |e| {
+        sealflash_core::flash::flash_drive(&req, &cancel, &mut |e| {
             note_stage(&e, &w);
             let _ = events.send(ForgeEvent::Flash(e));
         })
@@ -61,12 +61,12 @@ async fn platform_flash(
     use std::process::Stdio;
     use std::time::Duration;
 
-    use bootforge_core::flash::HelperMessage;
+    use sealflash_core::flash::HelperMessage;
     use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 
     let helper = helper_path().ok_or_else(|| {
         AppError::HelperMissing(
-            "/usr/lib/bootforge/bootforge-flash-helper fehlt (BootForge über das .deb/.rpm-Paket installieren)".into(),
+            "/usr/lib/sealflash/sealflash-flash-helper fehlt (SealFlash über das .deb/.rpm-Paket installieren)".into(),
         )
     })?;
 
@@ -144,13 +144,13 @@ async fn platform_flash(
 
 /// Wo liegt der Helper?
 ///
-/// Im Release-Build **nur** systemweit (`/usr/lib/bootforge`, aus dem .deb/.rpm). Dorthin kann nur
+/// Im Release-Build **nur** systemweit (`/usr/lib/sealflash`, aus dem .deb/.rpm). Dorthin kann nur
 /// root schreiben, und genau diesen Pfad nennt die polkit-Regel. Ein Helper „neben der App“ wird
 /// nur im Debug-Build gesucht (Entwicklung mit `cargo build`).
 #[cfg(target_os = "linux")]
 fn helper_path() -> Option<std::path::PathBuf> {
-    let name = "bootforge-flash-helper";
-    let system = std::path::PathBuf::from("/usr/lib/bootforge").join(name);
+    let name = "sealflash-flash-helper";
+    let system = std::path::PathBuf::from("/usr/lib/sealflash").join(name);
     #[cfg(debug_assertions)]
     {
         let next_to_app = std::env::current_exe().ok()?.parent()?.join(name);

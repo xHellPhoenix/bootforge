@@ -1,7 +1,7 @@
-//! Tauri-App: verbindet GUI und `bootforge-core`.
+//! Tauri-App: verbindet GUI und `sealflash-core`.
 //!
 //! Hier steht absichtlich wenig Logik. Commands nehmen Anfragen der GUI entgegen,
-//! rufen `bootforge-core` auf und geben Ergebnisse (oder Fehler) zurück.
+//! rufen `sealflash-core` auf und geben Ergebnisse (oder Fehler) zurück.
 
 mod commands;
 mod error;
@@ -10,7 +10,7 @@ mod forge;
 mod local;
 mod state;
 
-use bootforge_core::http::HttpClient;
+use sealflash_core::http::HttpClient;
 
 pub fn run() {
     let http = HttpClient::new().expect("HTTP-Client konnte nicht erstellt werden");
@@ -36,5 +36,5 @@ pub fn run() {
             commands::app_info
         ])
         .run(tauri::generate_context!())
-        .expect("BootForge konnte nicht gestartet werden");
+        .expect("SealFlash konnte nicht gestartet werden");
 }

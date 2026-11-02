@@ -1,6 +1,6 @@
 // Zustand eines Vorgangs für die Fortschrittsansicht:
 // - „download“: nur beschaffen + prüfen (Knopf „Nur herunterladen“)
-// - „forge“:    beschaffen + prüfen + auf den Stick schreiben (Knopf „Forge!“)
+// - „forge“:    beschaffen + prüfen + auf den Stick schreiben (Knopf „Flash!“)
 //
 // Die Liste der Schritte wird *vorausgeplant* (damit man sieht, was noch kommt) und dann anhand
 // der Ereignisse aus Rust aktualisiert.

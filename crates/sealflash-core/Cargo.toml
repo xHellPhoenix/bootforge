@@ -1,0 +1,58 @@
+[package]
+name = "sealflash-core"
+description = "Kernlogik von SealFlash: Katalog, Versionsermittlung, Download, Prüfung, Flashen"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+regex.workspace = true
+url.workspace = true
+schemars.workspace = true
+reqwest.workspace = true
+tokio.workspace = true
+percent-encoding.workspace = true
+sha2.workspace = true
+md-5.workspace = true
+flate2.workspace = true
+xz2.workspace = true
+ruzstd.workspace = true
+crc32fast.workspace = true
+
+# GPG-Prüfung mit dem jeweils nativen Krypto-Backend (siehe docs/ARCHITEKTUR.md, E16):
+# Windows: CNG (in Windows eingebaut), sonst: Nettle (Systembibliothek, Paket `nettle-dev` zum Bauen).
+[target.'cfg(windows)'.dependencies]
+sequoia-openpgp = { workspace = true, features = ["crypto-cng"] }
+# Direkter Laufwerkszugriff: Volumes sperren/aushängen, Admin-Rechte prüfen
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Storage_FileSystem", "Win32_System_IO", "Win32_System_Ioctl", "Win32_Security", "Win32_System_Threading"] }
+# Laufwerkserkennung über die Windows-Verwaltungsschnittstelle WMI
+# ACHTUNG: wmi erlaubt windows/windows-core ">=0.59, <0.63", und Cargo wählt beide unabhängig.
+# Passen sie nicht zusammen (z. B. windows 0.61 + windows-core 0.62), kompiliert wmi nicht.
+# Im Cargo.lock sind beide auf dieselbe Version wie bei Tauri festgelegt (0.62), z. B. mit:
+#   cargo update -p windows@0.61.3 --precise 0.62.2
+# (CI baut mit --locked, damit das nicht unbemerkt verloren geht.)
+wmi = "0.18"
+
+[target.'cfg(unix)'.dependencies]
+# O_DIRECT/O_EXCL, umount2, ioctl (BLKRRPART)
+libc.workspace = true
+
+[target.'cfg(not(windows))'.dependencies]
+sequoia-openpgp = { workspace = true, features = ["crypto-nettle"] }
+
+[features]
+# Stellt `http::fake::FakeFetcher` auch außerhalb von Unit-Tests bereit (Integrationstests).
+test-util = []
+
+[dev-dependencies]
+# Trick: das eigene Crate nochmal mit `test-util` einbinden, damit tests/ den Fake nutzen kann.
+sealflash-core = { path = ".", features = ["test-util"] }
+url.workspace = true
+fatfs.workspace = true
+
+[target.'cfg(unix)'.dev-dependencies]
+libc.workspace = true

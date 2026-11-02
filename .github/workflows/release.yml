@@ -48,7 +48,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: ${{ github.ref_name }}
-          releaseName: BootForge ${{ github.ref_name }}
+          releaseName: SealFlash ${{ github.ref_name }}
           releaseBody: |
             Installationsanleitung: siehe README. Prüfsummen aller Dateien: SHA256SUMS.txt.
           releaseDraft: true

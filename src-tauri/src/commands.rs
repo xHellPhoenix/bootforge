@@ -5,11 +5,11 @@ use std::time::Instant;
 
 use std::sync::atomic::Ordering;
 
-use bootforge_core::acquire::{self, AcquireEvent, Acquired};
-use bootforge_core::catalog::load::{self, DEFAULT_CATALOG_URL, Loaded};
-use bootforge_core::device::{self, Drive, ScanOptions};
-use bootforge_core::flash::{FlashJob, FlashReport, ForgeRequest};
-use bootforge_core::resolve::{self, ResolvedImage};
+use sealflash_core::acquire::{self, AcquireEvent, Acquired};
+use sealflash_core::catalog::load::{self, DEFAULT_CATALOG_URL, Loaded};
+use sealflash_core::device::{self, Drive, ScanOptions};
+use sealflash_core::flash::{FlashJob, FlashReport, ForgeRequest};
+use sealflash_core::resolve::{self, ResolvedImage};
 use tauri::ipc::Channel;
 use tauri::{AppHandle, Manager, State};
 use url::Url;
@@ -18,10 +18,10 @@ use crate::error::AppError;
 use crate::events::ForgeEvent;
 use crate::state::{AppState, BusyGuard, RESOLVE_TTL};
 
-/// Katalog-URL. Für Tests/Entwicklung per Umgebungsvariable `BOOTFORGE_CATALOG_URL`
+/// Katalog-URL. Für Tests/Entwicklung per Umgebungsvariable `SEALFLASH_CATALOG_URL`
 /// überschreibbar – aber nur mit HTTPS, sonst wird die Standard-URL genommen.
 fn catalog_url() -> Url {
-    std::env::var("BOOTFORGE_CATALOG_URL")
+    std::env::var("SEALFLASH_CATALOG_URL")
         .ok()
         .and_then(|s| Url::parse(&s).ok())
         .filter(|u| u.scheme() == "https")
@@ -212,9 +212,9 @@ fn images_dir(app: &AppHandle) -> Result<std::path::PathBuf, AppError> {
 
 /// Wie viel Platz belegen heruntergeladene Images?
 #[tauri::command]
-pub async fn cache_info(app: AppHandle) -> Result<bootforge_core::disk::CacheInfo, AppError> {
+pub async fn cache_info(app: AppHandle) -> Result<sealflash_core::disk::CacheInfo, AppError> {
     let dir = images_dir(&app)?;
-    tauri::async_runtime::spawn_blocking(move || bootforge_core::disk::cache_info(&dir))
+    tauri::async_runtime::spawn_blocking(move || sealflash_core::disk::cache_info(&dir))
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?
         .map_err(|e| AppError::Disk(e.to_string()))
@@ -225,7 +225,7 @@ pub async fn cache_info(app: AppHandle) -> Result<bootforge_core::disk::CacheInf
 pub async fn clear_cache(app: AppHandle, state: State<'_, AppState>) -> Result<u64, AppError> {
     let _busy = BusyGuard::acquire(&state)?;
     let dir = images_dir(&app)?;
-    tauri::async_runtime::spawn_blocking(move || bootforge_core::disk::clear_cache(&dir))
+    tauri::async_runtime::spawn_blocking(move || sealflash_core::disk::clear_cache(&dir))
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?
         .map_err(|e| AppError::Disk(e.to_string()))
@@ -244,7 +244,7 @@ pub async fn list_drives(show_external_hdds: Option<bool>) -> Result<Vec<Drive>,
         // Nur in Debug-Builds: nachgebautes /sys zum Testen der GUI ohne echten Stick.
         // In Release-Builds existiert dieser Zweig gar nicht.
         #[cfg(all(debug_assertions, target_os = "linux"))]
-        if let Ok(root) = std::env::var("BOOTFORGE_DEV_SYSROOT") {
+        if let Ok(root) = std::env::var("SEALFLASH_DEV_SYSROOT") {
             return device::list_from_root(std::path::Path::new(&root), opts);
         }
         device::list(opts)

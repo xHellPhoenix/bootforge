@@ -6,9 +6,9 @@ use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use bootforge_core::catalog::Catalog;
-use bootforge_core::http::HttpClient;
-use bootforge_core::resolve::ResolvedImage;
+use sealflash_core::catalog::Catalog;
+use sealflash_core::http::HttpClient;
+use sealflash_core::resolve::ResolvedImage;
 
 use crate::error::AppError;
 use crate::local::LocalImage;

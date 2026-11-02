@@ -9,9 +9,9 @@
 use std::path::PathBuf;
 use std::sync::atomic::Ordering;
 
-use bootforge_core::acquire::{AcquireEvent, Acquired};
-use bootforge_core::catalog::{Checksum, FlashMode, Source, Variant};
-use bootforge_core::local::{self, Expected, ImageInfo};
+use sealflash_core::acquire::{AcquireEvent, Acquired};
+use sealflash_core::catalog::{Checksum, FlashMode, Source, Variant};
+use sealflash_core::local::{self, Expected, ImageInfo};
 use serde::Serialize;
 use tauri::ipc::Channel;
 use tauri::{AppHandle, State};
@@ -131,7 +131,7 @@ pub async fn verify_local(
     .await
     .map_err(|e| match e {
         // Eigene, klarere Meldung: Die Datei ist keine unveränderte Original-ISO.
-        bootforge_core::acquire::AcquireError::ChecksumNotListed { .. } if variant_id.is_some() => {
+        sealflash_core::acquire::AcquireError::ChecksumNotListed { .. } if variant_id.is_some() => {
             AppError::NotOnVendorList(e.to_string())
         }
         e => e.into(),

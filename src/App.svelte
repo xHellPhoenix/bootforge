@@ -142,7 +142,7 @@
         <use href="#bf-logo" />
       </svg>
       <div>
-        <h1>BootForge{#if version}<span class="version">v{version}</span>{/if}</h1>
+        <h1>SealFlash{#if version}<span class="version">v{version}</span>{/if}</h1>
         <p>{t("app.tagline")}</p>
       </div>
     </div>
