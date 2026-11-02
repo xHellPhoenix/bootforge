@@ -197,9 +197,22 @@ impl Validator {
                 }
                 self.regex(&sloc, asset_pattern);
             }
-            Source::Microsoft { .. } => {
-                if v.flash_mode != FlashMode::Windows {
-                    self.err(&sloc, "Microsoft-Quellen brauchen `flash_mode: windows`");
+            Source::Manual {
+                download_page,
+                filename_pattern,
+            } => {
+                self.https(&sloc, download_page);
+                if let Some(p) = filename_pattern {
+                    self.regex(&sloc, p);
+                }
+                if matches!(
+                    v.checksum,
+                    Checksum::File { .. } | Checksum::FromSource { .. }
+                ) {
+                    self.err(&sloc, "`manual` braucht `checksum.type` = `page_listing`");
+                }
+                if v.signature.is_some() {
+                    self.err(&sloc, "`manual` unterstützt (noch) keine Signatur");
                 }
             }
         }
@@ -231,7 +244,6 @@ impl Validator {
             Checksum::FromSource { algorithm } => {
                 let provides = match &v.source {
                     Source::JsonApi { fields, .. } => fields.checksum.is_some(),
-                    Source::Microsoft { .. } => true,
                     _ => false,
                 };
                 if !provides {
@@ -239,6 +251,13 @@ impl Validator {
                         &cloc,
                         "`from_source` braucht eine Quelle, die eine Prüfsumme liefert",
                     );
+                }
+                *algorithm
+            }
+            Checksum::PageListing { url, algorithm } => {
+                self.https(&cloc, url);
+                if !matches!(v.source, Source::Manual { .. }) {
+                    self.err(&cloc, "`page_listing` geht nur bei `manual`-Quellen");
                 }
                 *algorithm
             }

@@ -19,6 +19,7 @@ percent-encoding.workspace = true
 sha2.workspace = true
 md-5.workspace = true
 flate2.workspace = true
+crc32fast.workspace = true
 
 # GPG-Prüfung mit dem jeweils nativen Krypto-Backend (siehe docs/ARCHITEKTUR.md, E16):
 # Windows: CNG (in Windows eingebaut), sonst: Nettle (Systembibliothek, Paket `nettle-dev` zum Bauen).
@@ -49,6 +50,7 @@ test-util = []
 # Trick: das eigene Crate nochmal mit `test-util` einbinden, damit tests/ den Fake nutzen kann.
 bootforge-core = { path = ".", features = ["test-util"] }
 url.workspace = true
+fatfs.workspace = true
 
 [target.'cfg(unix)'.dev-dependencies]
 libc.workspace = true

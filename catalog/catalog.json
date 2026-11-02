@@ -7,7 +7,8 @@
     { "id": "server", "name": { "de": "Server", "en": "Server" } },
     { "id": "homelab", "name": { "de": "Homelab", "en": "Homelab" } },
     { "id": "gaming", "name": { "de": "Gaming", "en": "Gaming" } },
-    { "id": "windows", "name": { "de": "Windows", "en": "Windows" } }
+    { "id": "windows", "name": { "de": "Windows", "en": "Windows" } },
+    { "id": "other", "name": { "de": "Eigenes Image", "en": "Own image" } }
   ],
   "distros": [
     {
@@ -588,7 +589,7 @@
       "vendor": "Microsoft",
       "homepage": "https://www.microsoft.com/software-download",
       "description": {
-        "de": "Offizielles Installationsmedium direkt von Microsoft.",
+        "de": "Offizielles Installationsmedium von Microsoft – von dir heruntergeladen, von BootForge geprüft.",
         "en": "Official installation media straight from Microsoft."
       },
       "variants": [
@@ -596,15 +597,23 @@
           "id": "windows-11",
           "name": { "de": "Windows 11", "en": "Windows 11" },
           "description": {
-            "de": "Windows 11 (x64), Sprache wählbar. Ein Lizenzschlüssel ist nicht enthalten.",
-            "en": "Windows 11 (x64), selectable language. A licence key is not included."
+            "de": "Windows 11 (x64). Du lädst die ISO auf der Microsoft-Seite herunter (Sprache dort wählbar), BootForge prüft sie und schreibt sie auf den Stick. Ein Lizenzschlüssel ist nicht enthalten.",
+            "en": "Windows 11 (x64). You download the ISO on Microsoft's site (language selectable there); BootForge verifies it and writes it to the drive. A licence key is not included."
           },
           "categories": ["windows"],
           "arch": "x86_64",
           "flash_mode": "windows",
           "min_usb_gb": 8,
-          "source": { "type": "microsoft", "product": "windows11" },
-          "checksum": { "type": "from_source", "algorithm": "sha256" }
+          "source": {
+            "type": "manual",
+            "download_page": "https://www.microsoft.com/de-de/software-download/windows11",
+            "filename_pattern": "(?i)^win.*11.*x64.*\\.iso$"
+          },
+          "checksum": {
+            "type": "page_listing",
+            "url": "https://www.microsoft.com/en-us/software-download/windows11",
+            "algorithm": "sha256"
+          }
         },
         {
           "id": "windows-10",
@@ -617,8 +626,16 @@
           "arch": "x86_64",
           "flash_mode": "windows",
           "min_usb_gb": 8,
-          "source": { "type": "microsoft", "product": "windows10" },
-          "checksum": { "type": "from_source", "algorithm": "sha256" }
+          "source": {
+            "type": "manual",
+            "download_page": "https://www.microsoft.com/de-de/software-download/windows10ISO",
+            "filename_pattern": "(?i)^win.*10.*x64.*\\.iso$"
+          },
+          "checksum": {
+            "type": "page_listing",
+            "url": "https://www.microsoft.com/en-us/software-download/windows10ISO",
+            "algorithm": "sha256"
+          }
         }
       ]
     }

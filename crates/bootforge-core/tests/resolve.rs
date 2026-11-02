@@ -283,9 +283,10 @@ async fn missing_listing_is_a_clear_error() {
 }
 
 #[tokio::test]
-async fn microsoft_not_supported_yet() {
-    let err = resolve(&FakeFetcher::new(), &variant("windows-11"))
-        .await
-        .unwrap_err();
-    assert!(matches!(err, ResolveError::NotSupportedYet("microsoft")));
+async fn windows_is_downloaded_manually() {
+    // Microsoft erlaubt keine automatisierten Downloads → nichts zu ermitteln, kein Netzzugriff.
+    let f = FakeFetcher::new();
+    let err = resolve(&f, &variant("windows-11")).await.unwrap_err();
+    assert!(matches!(err, ResolveError::Manual));
+    assert!(f.requests.lock().unwrap().is_empty());
 }

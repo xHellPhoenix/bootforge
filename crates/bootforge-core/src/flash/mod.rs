@@ -13,10 +13,14 @@ use serde::{Deserialize, Serialize};
 
 use crate::device::{self, Drive, ScanOptions};
 
+pub mod blockcache;
+pub mod fat32;
+pub mod gpt;
 #[cfg(target_os = "linux")]
 pub mod linux;
 #[cfg(windows)]
 pub mod windows;
+pub mod windows_media;
 pub mod write;
 
 pub use write::{FlashError, FlashEvent, FlashJob, FlashReport, FlashStage};

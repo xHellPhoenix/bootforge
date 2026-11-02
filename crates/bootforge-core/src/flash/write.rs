@@ -57,6 +57,14 @@ pub enum FlashStage {
     Write,
     /// Zurücklesen und vergleichen.
     Readback,
+    /// Windows: install.wim in Teile ≤ 4 GB aufteilen.
+    Split,
+    /// Windows: GPT-Partitionstabelle schreiben.
+    Partition,
+    /// Windows: FAT32 anlegen.
+    Format,
+    /// Windows: Dateien aus der ISO kopieren.
+    Copy,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
