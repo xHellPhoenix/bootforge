@@ -139,6 +139,33 @@ fn gzip_image_is_decompressed_on_the_fly() {
     assert_eq!(&read_all(&mut dev)[..content.len()], &content[..]);
 }
 
+/// Raspberry-Pi-Images kommen als `.img.xz`, manche als `.img.zst` – ebenfalls im Fluss entpackt.
+#[test]
+fn xz_and_zstd_images_are_decompressed_on_the_fly() {
+    let content = data(2 * MB as usize + 13);
+
+    let mut xz = xz2::write::XzEncoder::new(Vec::new(), 1);
+    xz.write_all(&content).unwrap();
+    let xz = xz.finish().unwrap();
+    let zst = ruzstd::encoding::compress_to_vec(
+        content.as_slice(),
+        ruzstd::encoding::CompressionLevel::Fastest,
+    );
+
+    for (name, compressed, c) in [
+        ("x.img.xz", xz, Compression::Xz),
+        ("x.img.zst", zst, Compression::Zstd),
+    ] {
+        let d = dir(name);
+        let mut job = image(&d, name, &compressed, c);
+        job.expected_hash = hash(HashAlgorithm::Sha256, &compressed);
+        let mut dev = stick(&d, 8 * MB);
+        let report = run(&mut dev, 8 * MB, &job).0.unwrap();
+        assert_eq!(report.written, content.len() as u64, "{name}");
+        assert_eq!(&read_all(&mut dev)[..content.len()], &content[..], "{name}");
+    }
+}
+
 #[test]
 fn wrong_image_never_touches_the_stick() {
     let d = dir("wrongimg");

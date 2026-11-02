@@ -30,6 +30,14 @@ sha2 = "0.11"
 md-5 = "0.11"
 # gzip im Fluss entpacken (Batocera .img.gz) – reine Rust-Implementierung (miniz_oxide)
 flate2 = "1"
+# xz: liblzma 5.2 wird mitkompiliert (nicht die 5.6.0/5.6.1 mit der Hintertür von 2024).
+xz2 = { version = "0.1", features = ["static"] }
+# zstd: reiner Rust-Decoder, kein C-Compiler nötig.
+ruzstd = "0.8"
+# GPT braucht CRC32 (Header und Partitionseinträge)
+crc32fast = "1"
+# Nur in Tests: unabhängiger FAT32-Leser zur Gegenprobe (zum Schreiben ungeeignet, siehe fat32.rs)
+fatfs = "0.3"
 libc = "0.2"
 # OpenPGP ohne Standard-Features: das Krypto-Backend wählt jedes Crate pro Betriebssystem selbst.
 sequoia-openpgp = { version = "2", default-features = false }

@@ -6,7 +6,16 @@
     catalog,
     selected,
     onpick,
-  }: { catalog: Catalog; selected: Distro | null; onpick: (d: Distro) => void } = $props();
+    own,
+    onpickown,
+  }: {
+    catalog: Catalog;
+    selected: Distro | null;
+    onpick: (d: Distro) => void;
+    /** „Eigenes Image“ ist gewählt. */
+    own: boolean;
+    onpickown: () => void;
+  } = $props();
 
   let category = $state<string | null>(null);
   let query = $state("");
@@ -21,6 +30,13 @@
       return inCategory && matches;
     }),
   );
+  // „Eigenes Image“ ist kein Katalogeintrag, sondern fest in der App – sichtbar unter „Alle“
+  // und der Kategorie „other“ (oder wenn die Suche passt).
+  const showOwn = $derived.by(() => {
+    const q = query.trim().toLowerCase();
+    const inCategory = !category || category === "other";
+    return inCategory && (!q || t("local.own.title").toLowerCase().includes(q));
+  });
 </script>
 
 <section class="list">
@@ -46,8 +62,19 @@
         </button>
       </li>
     {:else}
-      <li class="empty">{t("distro.empty")}</li>
+      {#if !showOwn}<li class="empty">{t("distro.empty")}</li>{/if}
     {/each}
+    {#if showOwn}
+      <li>
+        <button class="distro" class:selected={own} onclick={onpickown}>
+          <span class="avatar own" aria-hidden="true">+</span>
+          <span class="meta">
+            <strong>{t("local.own.title")}</strong>
+            <small>{t("local.own.subtitle")}</small>
+          </span>
+        </button>
+      </li>
+    {/if}
   </ul>
 </section>
 
@@ -127,6 +154,10 @@
     border: 1px solid var(--border);
     font-weight: 700;
     color: var(--accent-hot);
+  }
+  .avatar.own {
+    border-style: dashed;
+    font-size: 18px;
   }
   .meta {
     display: grid;

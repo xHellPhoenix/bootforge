@@ -7,6 +7,7 @@ mod commands;
 mod error;
 mod events;
 mod forge;
+mod local;
 mod state;
 
 use bootforge_core::http::HttpClient;
@@ -15,6 +16,10 @@ pub fn run() {
     let http = HttpClient::new().expect("HTTP-Client konnte nicht erstellt werden");
 
     tauri::Builder::default()
+        // Plugins nur fürs Backend: Ohne Eintrag in capabilities/ darf das Frontend sie nicht
+        // aufrufen. Dateiauswahl und Browser-Öffnen gehen über unsere eigenen Commands.
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_opener::init())
         .manage(state::AppState::new(http))
         .invoke_handler(tauri::generate_handler![
             commands::get_catalog,
@@ -23,6 +28,9 @@ pub fn run() {
             commands::cancel_prepare,
             commands::list_drives,
             commands::forge,
+            local::pick_image,
+            local::open_download_page,
+            local::verify_local,
             commands::app_info
         ])
         .run(tauri::generate_context!())

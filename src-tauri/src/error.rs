@@ -40,6 +40,19 @@ pub enum AppError {
     Disk(String),
     #[error("Laufwerke konnten nicht gelesen werden: {0}")]
     DeviceScan(String),
+    // --- Eigene Images ---
+    #[error("Diese Variante lädt man selbst herunter")]
+    ManualSource,
+    #[error("Prüfsumme ungültig (erwartet: SHA-256, SHA-512 oder MD5 in Hex)")]
+    InvalidHash,
+    #[error("Das ist kein Windows-Installationsmedium")]
+    NotWindowsMedia,
+    #[error("Prüfsumme steht nicht in der Liste des Herstellers: {0}")]
+    NotOnVendorList(String),
+    #[error("Datei wurde noch nicht geprüft")]
+    NotVerified,
+    #[error("Programm wimlib-imagex fehlt")]
+    WimlibMissing,
     // --- Flashen ---
     #[error("Bestätigung stimmt nicht mit dem Laufwerksnamen überein")]
     ConfirmMismatch,
@@ -84,6 +97,7 @@ impl AppError {
             FlashError::ReadbackMismatch { .. } => AppError::ReadbackMismatch(detail),
             FlashError::Busy(b) => AppError::DriveBusy(b),
             FlashError::NotElevated => AppError::NotElevated,
+            FlashError::Unsupported(u) if u.contains("wimlib-imagex") => AppError::WimlibMissing,
             FlashError::Unsupported(u) => AppError::NotSupportedYet(u),
             FlashError::Cancelled if wrote => AppError::FlashCancelled,
             FlashError::Cancelled => AppError::Cancelled,
@@ -123,6 +137,7 @@ impl From<ResolveError> for AppError {
             | ResolveError::MissingField { .. }
             | ResolveError::Json { .. } => AppError::NoMatch(detail),
             ResolveError::NotSupportedYet(what) => AppError::NotSupportedYet(what.into()),
+            ResolveError::Manual => AppError::ManualSource,
             ResolveError::BadChecksumValue { .. }
             | ResolveError::BadPattern(_)
             | ResolveError::BadUrl(_) => AppError::Internal(detail),

@@ -23,9 +23,10 @@ pub async fn flash(
     platform_flash(req, cancel, events).await
 }
 
+/// Ab diesen Schritten wird auf den Stick geschrieben (Raw: Write; Windows: ab Partition).
 fn note_stage(e: &FlashEvent, wrote: &AtomicBool) {
     if let FlashEvent::Stage {
-        stage: FlashStage::Write,
+        stage: FlashStage::Write | FlashStage::Partition | FlashStage::Format | FlashStage::Copy,
     } = e
     {
         wrote.store(true, Ordering::SeqCst);

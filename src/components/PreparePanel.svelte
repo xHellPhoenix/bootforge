@@ -59,7 +59,7 @@
     <div class="result forged">
       <strong>✓ {t("forge.done")}</strong>
       <p>{t("forge.done_text", { size: formatBytes(f.written, i18n.locale) })}</p>
-      {#if isWindows}<p class="hint">⚠ {t("forge.windows_format_hint")}</p>{/if}
+      {#if isWindows && job.mode === "raw"}<p class="hint">⚠ {t("forge.windows_format_hint")}</p>{/if}
       <p class="dim">{t(`prepare.assurance.${r.assurance}`)}</p>
       <dl>
         <dt>{t("forge.written_hash")}</dt>

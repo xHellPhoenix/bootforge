@@ -108,7 +108,7 @@
           ]
         },
         {
-          "description": "Die Quelle (JSON-API, Microsoft) liefert die Prüfsumme direkt mit.",
+          "description": "Die Quelle (JSON-API) liefert die Prüfsumme direkt mit.",
           "type": "object",
           "properties": {
             "algorithm": {
@@ -123,6 +123,30 @@
           "additionalProperties": false,
           "required": [
             "type",
+            "algorithm"
+          ]
+        },
+        {
+          "description": "Der Hash der Datei muss auf dieser HTTPS-Seite des Herstellers stehen\n(z. B. Microsofts Tabelle „SHA-256 je Sprache“ auf der Download-Seite).",
+          "type": "object",
+          "properties": {
+            "algorithm": {
+              "description": "Hash-Algorithmus.",
+              "$ref": "#/$defs/HashAlgorithm"
+            },
+            "type": {
+              "type": "string",
+              "const": "page_listing"
+            },
+            "url": {
+              "description": "Seite mit der Liste (HTTPS).",
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "url",
             "algorithm"
           ]
         }
@@ -435,22 +459,29 @@
           ]
         },
         {
-          "description": "Offizieller Microsoft-Download (Windows). Sprache wird in der App gewählt.",
+          "description": "Der Nutzer lädt selbst herunter (z. B. Windows: Microsoft erlaubt keine automatisierten\nDownloads). BootForge öffnet die Seite im Browser; danach wählt man die Datei aus und\nBootForge prüft sie (siehe `checksum`).",
           "type": "object",
           "properties": {
-            "product": {
-              "description": "Produkt.",
-              "$ref": "#/$defs/WindowsProduct"
+            "download_page": {
+              "description": "Offizielle Download-Seite (HTTPS).",
+              "type": "string"
+            },
+            "filename_pattern": {
+              "description": "Regex für den erwarteten Dateinamen – nur als Hinweis bei der Auswahl.",
+              "type": [
+                "string",
+                "null"
+              ]
             },
             "type": {
               "type": "string",
-              "const": "microsoft"
+              "const": "manual"
             }
           },
           "additionalProperties": false,
           "required": [
             "type",
-            "product"
+            "download_page"
           ]
         }
       ]
@@ -577,14 +608,6 @@
         "flash_mode",
         "source",
         "checksum"
-      ]
-    },
-    "WindowsProduct": {
-      "description": "Windows-Produkte.",
-      "type": "string",
-      "enum": [
-        "windows11",
-        "windows10"
       ]
     }
   }

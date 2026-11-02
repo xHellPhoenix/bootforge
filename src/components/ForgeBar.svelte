@@ -2,7 +2,7 @@
   import { lt, t } from "../lib/i18n.svelte";
   import { formatBytes } from "../lib/format";
   import { i18n } from "../lib/i18n.svelte";
-  import type { CatalogResponse, Distro, Drive, ResolveState, Variant } from "../lib/types";
+  import type { CatalogResponse, Distro, Drive, LocalImage, ResolveState, Variant } from "../lib/types";
 
   let {
     onforge,
@@ -14,6 +14,9 @@
     distro,
     variant,
     resolve,
+    own,
+    local,
+    localMode,
     origin,
     updated,
   }: {
@@ -27,31 +30,35 @@
     distro: Distro | null;
     variant: Variant | null;
     resolve: ResolveState | undefined;
+    /** „Eigenes Image“ gewählt. */
+    own: boolean;
+    /** Geprüfte eigene Datei (Windows-ISO oder eigenes Image), falls gewählt. */
+    local: LocalImage | null;
+    /** Kommt das Image aus einer eigenen Datei (statt Download)? */
+    localMode: boolean;
     origin: CatalogResponse["origin"];
     updated: string;
   } = $props();
 
   // „Ubuntu Desktop (LTS) 26.04.1“ – den Distro-Namen nicht doppeln („Windows Windows 11“).
   const label = $derived.by(() => {
+    if (own) return local ? local.acquired.filename : t("local.own.title");
     if (!variant) return "—";
     const name = lt(variant.name);
     const prefix = distro && !name.startsWith(distro.name) ? `${distro.name} ` : "";
     const version = resolve?.status === "ok" ? ` ${resolve.image.version}` : "";
     return prefix + name + version;
   });
-  const ready = $derived(resolve?.status === "ok");
-
-  // Windows-Installationsmedien brauchen einen eigenen Schreibmodus (Phase 6).
-  const rawMode = $derived(variant?.flash_mode === "raw");
-  const canForge = $derived(ready && !!drive && driveFits && rawMode && !busy);
+  const ready = $derived(localMode ? !!local : resolve?.status === "ok");
+  const canForge = $derived(ready && !!drive && driveFits && !busy);
   const hint = $derived(
     !ready
-      ? t("forge.hint.need_variant")
+      ? localMode
+        ? t("forge.hint.need_file")
+        : t("forge.hint.need_variant")
       : !drive || !driveFits
         ? t("forge.hint.need_usb")
-        : !rawMode
-          ? t("forge.hint.windows_mode")
-          : "",
+        : "",
   );
 </script>
 
@@ -73,7 +80,8 @@
 
   <div class="right">
     <span class="catalog">{t(`catalog.origin.${origin}`)} · {t("catalog.updated", { date: updated })}</span>
-    <button class="secondary" disabled={!ready || busy} onclick={() => ondownload(label)}>
+    <!-- Bei eigenen Dateien gibt es nichts herunterzuladen. -->
+    <button class="secondary" disabled={!ready || busy || localMode} onclick={() => ondownload(label)}>
       {t("forge.download_only")}
     </button>
     <button class="forge" disabled={!canForge} title={hint} onclick={() => onforge(label)}>

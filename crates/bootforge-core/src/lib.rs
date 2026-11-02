@@ -12,5 +12,6 @@ pub mod device;
 pub mod download;
 pub mod flash;
 pub mod http;
+pub mod local;
 pub mod resolve;
 pub mod verify;
