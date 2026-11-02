@@ -13,6 +13,7 @@
   import { createJob, createLocalJob, run, type Job } from "./lib/job.svelte";
 
   let response = $state<CatalogResponse | null>(null);
+  let version = $state("");
   let error = $state<AppError | null>(null);
 
   let selectedDistro = $state<Distro | null>(null);
@@ -56,6 +57,10 @@
   const currentStep = $derived(!imageReady ? 1 : driveFits ? 3 : 2);
 
   onMount(async () => {
+    api
+      .appInfo()
+      .then((i) => (version = i.version))
+      .catch(() => {});
     try {
       response = await api.getCatalog();
       const first = response.catalog.distros[0];
@@ -137,7 +142,7 @@
         <use href="#bf-logo" />
       </svg>
       <div>
-        <h1>BootForge</h1>
+        <h1>BootForge{#if version}<span class="version">v{version}</span>{/if}</h1>
         <p>{t("app.tagline")}</p>
       </div>
     </div>
@@ -161,7 +166,7 @@
   {:else}
     {#if response.origin !== "remote"}
       <div class="banner" title={response.fallback_reason ?? ""}>
-        ⚠ {t(`catalog.fallback.${response.origin}`)}
+        ⚠ {response.remote_rejected ? t("catalog.fallback.incompatible") : t(`catalog.fallback.${response.origin}`)}
       </div>
     {/if}
     {#if job}
@@ -275,6 +280,12 @@
     margin: 0;
     font-size: 18px;
     letter-spacing: 0.3px;
+  }
+  .version {
+    margin-left: 8px;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-faint);
   }
   .brand p {
     margin: 0;

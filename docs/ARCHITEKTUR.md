@@ -368,19 +368,55 @@ entpackt (`flate2`, `xz2`, `ruzstd`). Die Prüfsumme gilt, wie bei den Herstelle
 komprimierte Datei. `xz2` kompiliert liblzma 5.2 mit. Die Versionen 5.6.0/5.6.1 mit der Hintertür von
 2024 sind nicht betroffen.
 
-## Offene Punkte für spätere Phasen
+### E46 – Linux: .deb und .rpm, kein AppImage
+Ein AppImage ist eine Datei, die sich beim Start per FUSE selbst einbindet. Der Root-Helper müsste
+dann aus diesem Einhängepunkt gestartet werden. Den darf root aber standardmäßig gar nicht lesen
+(FUSE ohne `allow_other`). Außerdem nennt die polkit-Regel einen festen Pfad. Das .deb/.rpm
+installiert den Helper nach `/usr/lib/bootforge/`, die polkit-Regel nach
+`/usr/share/polkit-1/actions/` und zieht `wimtools`/`wimlib-utils` und pkexec als Abhängigkeiten
+mit. Gebaut wird das .deb auf Ubuntu 22.04, damit es auch auf älteren Systemen installierbar ist:
+Die Mindestversionen der Bibliotheken richten sich nach dem System, auf dem gebaut wurde.
+
+### E47 – Release-App startet nur den Helper aus `/usr/lib/bootforge`
+Im Debug-Build sucht die App den Helper auch neben sich selbst (bequem beim Entwickeln). Im
+Release-Build nur unter `/usr/lib/bootforge/`. Dorthin kann nur root schreiben, und dieser Pfad steht
+in der polkit-Regel. Läge die App z. B. in einem vom Benutzer beschreibbaren Ordner, könnte sonst
+jemand dort einen veränderten „Helper“ ablegen. Der würde mit Administratorrechten laufen, sobald
+der Benutzer das Passwort eingibt.
+
+### E48 – wimlib im Windows-Installer: Hash festgeschrieben
+wimlib veröffentlicht keine Prüfsummen oder Signaturen. Der SHA-256 des Windows-Pakets wurde beim
+ersten Download festgehalten („Trust on first use“) und steht in `fetch-wimlib.ps1`. Jeder spätere
+Download, lokal oder im CI, muss exakt passen. So kann eine später manipulierte Datei auf dem Server
+nicht unbemerkt in unseren Installer gelangen. wimlib steht unter der GPLv3+, genau wie BootForge.
+Deshalb liegen die Lizenztexte im Installer, und jedes Release enthält den Quelltext
+(`wimlib-1.14.5.tar.gz`). [THIRD-PARTY.md](../THIRD-PARTY.md) listet alle Abhängigkeiten mit
+Lizenz und wird mit `scripts/third_party.py` erzeugt.
+
+### E49 – Release als Entwurf, mit SHA256SUMS
+Der Release-Workflow veröffentlicht nichts selbst, sondern legt einen Entwurf an. Ein Mensch prüft
+und veröffentlicht. `SHA256SUMS.txt` über alle Dateien gibt Nutzern dieselbe Prüfmöglichkeit, die
+BootForge selbst bei Distributionen verlangt. Der Windows-Installer ist (noch) nicht code-signiert:
+Ein Zertifikat kostet Geld, SmartScreen warnt deshalb beim ersten Start.
+
+### E50 – Speicherplatz vor dem Download prüfen, Cache sichtbar machen
+Sobald die Größe bekannt ist (`Content-Length`), wird geprüft, ob die Datei plus 256 MB Reserve auf
+das Laufwerk passt. Ein Abbruch bei 95 % wegen voller Platte wäre ärgerlich. Heruntergeladene Images
+bleiben im Cache (zweiter Stick ohne neuen Download). Unten rechts zeigt die App, wie viel Platz das
+belegt, und kann ihn leeren. Gelöscht werden nur Dateien direkt im Cache-Ordner, Links werden nicht
+verfolgt.
+
+## Offene Punkte
 - **Kompatibilität des Online-Katalogs:** Wegen `deny_unknown_fields` lehnt eine ältere App einen
   Katalog mit neuen Feldern ab (z. B. `allow_v3`) und fällt auf ihren Cache zurück. Neue Felder darf
   der Online-Katalog deshalb erst bekommen, wenn die passende App-Version veröffentlicht ist.
   Langfristig: `schema_version` erhöhen und pro Version eine eigene Datei anbieten.
-- Speicherplatz vor dem Download prüfen; Download-Ordner wählbar; alte ISOs aufräumen (Phase 7).
+- Download-Ordner wählbar; alte Versionen automatisch aufräumen.
 - GitHub Action im Katalog-Repo, die `resolve_all` regelmäßig laufen lässt und bei kaputten
-  Einträgen ein Issue öffnet (Phase 7).
+  Einträgen ein Issue öffnet.
 - TypeScript-Typen werden noch von Hand gepflegt (`src/lib/types.ts`). Später eventuell mit
   `specta`/`ts-rs` generieren.
-- Linux-Pakete: Helper nach `/usr/lib/bootforge/`, polkit-Regel nach `/usr/share/polkit-1/actions/` (Phase 7).
-- `wimlib-imagex` (+ `libwim-15.dll`) der Windows-Version beilegen; unter Linux als Paket-Abhängigkeit
-  `wimtools` (Phase 7).
-- Katalog-Zweig `windows-manual-other` erst nach dem Release dieser App-Version nach `main` mergen
-  (siehe Kompatibilität oben).
+- Code-Signatur für den Windows-Installer, Auto-Update (Tauri-Updater mit signierten Updates).
+- Katalog-Zweig `windows-manual-other` beim Veröffentlichen von 0.1.0 nach `main` mergen (die
+  App-Version auf `main` ist die erste, ältere gibt es nicht; siehe docs/RELEASE.md).
 - Windows-Sticks für reine BIOS-PCs (MBR + NTFS + Bootsektor) – bewusst nicht geplant, siehe E38.

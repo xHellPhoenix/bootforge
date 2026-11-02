@@ -66,7 +66,7 @@ async fn platform_flash(
 
     let helper = helper_path().ok_or_else(|| {
         AppError::HelperMissing(
-            "bootforge-flash-helper liegt weder neben der App noch in /usr/lib/bootforge".into(),
+            "/usr/lib/bootforge/bootforge-flash-helper fehlt (BootForge über das .deb/.rpm-Paket installieren)".into(),
         )
     })?;
 
@@ -142,15 +142,21 @@ async fn platform_flash(
     }
 }
 
-/// Wo liegt der Helper? Neben der App (Entwicklung, AppImage) oder systemweit (.deb).
+/// Wo liegt der Helper?
+///
+/// Im Release-Build **nur** systemweit (`/usr/lib/bootforge`, aus dem .deb/.rpm). Dorthin kann nur
+/// root schreiben, und genau diesen Pfad nennt die polkit-Regel. Ein Helper „neben der App“ wird
+/// nur im Debug-Build gesucht (Entwicklung mit `cargo build`).
 #[cfg(target_os = "linux")]
 fn helper_path() -> Option<std::path::PathBuf> {
     let name = "bootforge-flash-helper";
-    let exe_dir = std::env::current_exe().ok()?.parent()?.to_path_buf();
-    [
-        exe_dir.join(name),
-        std::path::PathBuf::from("/usr/lib/bootforge").join(name),
-    ]
-    .into_iter()
-    .find(|p| p.is_file())
+    let system = std::path::PathBuf::from("/usr/lib/bootforge").join(name);
+    #[cfg(debug_assertions)]
+    {
+        let next_to_app = std::env::current_exe().ok()?.parent()?.join(name);
+        if next_to_app.is_file() {
+            return Some(next_to_app);
+        }
+    }
+    system.is_file().then_some(system)
 }

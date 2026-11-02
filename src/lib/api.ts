@@ -4,6 +4,7 @@ import type {
   Acquired,
   AcquireEvent,
   AppInfo,
+  CacheInfo,
   CatalogResponse,
   Drive,
   ForgeEvent,
@@ -53,4 +54,7 @@ export const api = {
   },
   listDrives: (showExternalHdds = false) => invoke<Drive[]>("list_drives", { showExternalHdds }),
   appInfo: () => invoke<AppInfo>("app_info"),
+  cacheInfo: () => invoke<CacheInfo>("cache_info"),
+  /** Liefert die freigegebenen Bytes. */
+  clearCache: () => invoke<number>("clear_cache"),
 };

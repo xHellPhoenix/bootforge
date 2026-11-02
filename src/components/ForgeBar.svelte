@@ -2,6 +2,7 @@
   import { lt, t } from "../lib/i18n.svelte";
   import { formatBytes } from "../lib/format";
   import { i18n } from "../lib/i18n.svelte";
+  import CacheButton from "./CacheButton.svelte";
   import type { CatalogResponse, Distro, Drive, LocalImage, ResolveState, Variant } from "../lib/types";
 
   let {
@@ -80,6 +81,7 @@
 
   <div class="right">
     <span class="catalog">{t(`catalog.origin.${origin}`)} · {t("catalog.updated", { date: updated })}</span>
+    <CacheButton {busy} />
     <!-- Bei eigenen Dateien gibt es nichts herunterzuladen. -->
     <button class="secondary" disabled={!ready || busy || localMode} onclick={() => ondownload(label)}>
       {t("forge.download_only")}

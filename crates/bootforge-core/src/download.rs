@@ -49,6 +49,8 @@ pub enum DownloadError {
     Cancelled,
     #[error("Download unvollständig: {got} von {expected} Bytes")]
     Incomplete { got: u64, expected: u64 },
+    #[error("Nicht genug Speicherplatz: {need} Bytes nötig, {available} frei")]
+    NoSpace { need: u64, available: u64 },
 }
 
 impl From<std::io::Error> for DownloadError {
@@ -150,6 +152,15 @@ pub async fn download<S: RangeSource>(
         // Server liefert komplett neu (kein Range-Support oder Datei geändert) → von vorn.
         existing = 0;
         hasher = Hasher::new(algorithm);
+    }
+    // Passt die Datei überhaupt noch auf die Platte? Lieber jetzt abbrechen als bei 95 %.
+    if let (Some(total), Some(dir)) = (opened.total, dest.parent())
+        && let Ok(available) = crate::disk::available_space(dir)
+    {
+        let need = total.saturating_sub(existing);
+        if need.saturating_add(crate::disk::RESERVE) > available {
+            return Err(DownloadError::NoSpace { need, available });
+        }
     }
     let meta = PartMeta {
         url: url.to_string(),
@@ -391,6 +402,8 @@ pub mod fake {
         pub etag: String,
         pub opens: AtomicUsize,
         pub last_from: Mutex<u64>,
+        /// Gemeldete Gesamtgröße überschreiben (z. B. riesig, um „Platte voll“ zu testen).
+        pub claimed_total: Option<u64>,
     }
 
     impl FakeSource {
@@ -403,6 +416,7 @@ pub mod fake {
                 etag: "\"v1\"".into(),
                 opens: AtomicUsize::new(0),
                 last_from: Mutex::new(0),
+                claimed_total: None,
             }
         }
     }
@@ -445,7 +459,7 @@ pub mod fake {
                 .collect::<Vec<_>>();
             Ok(Opened {
                 resumed: honor,
-                total: Some(self.data.len() as u64),
+                total: Some(self.claimed_total.unwrap_or(self.data.len() as u64)),
                 validator: Some(self.etag.clone()),
                 body: FakeBody {
                     chunks: chunks.into_iter(),

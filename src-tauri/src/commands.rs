@@ -108,11 +108,7 @@ pub async fn prepare_image(
     state.cancel.store(false, Ordering::SeqCst);
 
     let img = resolve_cached(&state, variant_id, false).await?;
-    let dir = app
-        .path()
-        .app_cache_dir()
-        .map_err(|e| AppError::Internal(e.to_string()))?
-        .join("images");
+    let dir = images_dir(&app)?;
     let result = acquire::acquire(&state.http, &img, &dir, &state.cancel, |e| {
         // Ist das Fenster zu, gibt es keinen Empfänger mehr – das ist kein Fehler.
         let _ = on_event.send(e);
@@ -168,11 +164,7 @@ pub async fn forge(
     let (acquired, compression, mode) = match source {
         ForgeSource::Catalog { variant_id } => {
             let img = resolve_cached(&state, variant_id, false).await?;
-            let dir = app
-                .path()
-                .app_cache_dir()
-                .map_err(|e| AppError::Internal(e.to_string()))?
-                .join("images");
+            let dir = images_dir(&app)?;
             let acquired = acquire::acquire(&state.http, &img, &dir, &state.cancel, |e| {
                 let _ = on_event.send(ForgeEvent::Acquire(e));
             })
@@ -208,6 +200,35 @@ pub async fn forge(
     };
     let report = crate::forge::flash(req, state.cancel.clone(), on_event).await?;
     Ok(ForgeResult { acquired, report })
+}
+
+fn images_dir(app: &AppHandle) -> Result<std::path::PathBuf, AppError> {
+    Ok(app
+        .path()
+        .app_cache_dir()
+        .map_err(|e| AppError::Internal(e.to_string()))?
+        .join("images"))
+}
+
+/// Wie viel Platz belegen heruntergeladene Images?
+#[tauri::command]
+pub async fn cache_info(app: AppHandle) -> Result<bootforge_core::disk::CacheInfo, AppError> {
+    let dir = images_dir(&app)?;
+    tauri::async_runtime::spawn_blocking(move || bootforge_core::disk::cache_info(&dir))
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?
+        .map_err(|e| AppError::Disk(e.to_string()))
+}
+
+/// Löscht alle heruntergeladenen Images (nicht während eines Downloads oder Schreibvorgangs).
+#[tauri::command]
+pub async fn clear_cache(app: AppHandle, state: State<'_, AppState>) -> Result<u64, AppError> {
+    let _busy = BusyGuard::acquire(&state)?;
+    let dir = images_dir(&app)?;
+    tauri::async_runtime::spawn_blocking(move || bootforge_core::disk::clear_cache(&dir))
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?
+        .map_err(|e| AppError::Disk(e.to_string()))
 }
 
 /// Listet alle Laufwerke mit Urteil (wählbar oder nicht, mit Grund).

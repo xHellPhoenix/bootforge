@@ -38,6 +38,8 @@ pub enum AppError {
     ChecksumMissing(String),
     #[error("Dateifehler: {0}")]
     Disk(String),
+    #[error("Nicht genug Speicherplatz: {0}")]
+    NoSpace(String),
     #[error("Laufwerke konnten nicht gelesen werden: {0}")]
     DeviceScan(String),
     // --- Eigene Images ---
@@ -121,6 +123,7 @@ impl From<AcquireError> for AppError {
                 ResolveError::Fetch(f).into()
             }
             AcquireError::Download(DownloadError::Io(_)) => AppError::Disk(detail),
+            AcquireError::Download(DownloadError::NoSpace { .. }) => AppError::NoSpace(detail),
             AcquireError::Download(_) => AppError::Network(detail),
         }
     }

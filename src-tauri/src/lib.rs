@@ -27,6 +27,8 @@ pub fn run() {
             commands::prepare_image,
             commands::cancel_prepare,
             commands::list_drives,
+            commands::cache_info,
+            commands::clear_cache,
             commands::forge,
             local::pick_image,
             local::open_download_page,

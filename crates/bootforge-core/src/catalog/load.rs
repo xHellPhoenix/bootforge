@@ -45,6 +45,9 @@ pub struct Loaded {
     pub warnings: Vec<Issue>,
     /// Warum nicht der Online-Katalog verwendet wird (für den Hinweis in der GUI).
     pub fallback_reason: Option<String>,
+    /// Der Online-Katalog war erreichbar, passt aber nicht zu dieser App-Version (andere
+    /// Felder/Typen). Dann hilft nur ein App-Update – die GUI sagt das so.
+    pub remote_rejected: bool,
 }
 
 #[derive(Serialize, Deserialize, Default)]
@@ -58,6 +61,7 @@ pub async fn load<F: Fetcher>(f: &F, url: &Url, cache_dir: &Path) -> Loaded {
     // ETag nur mitschicken, wenn wir auch einen gültigen Cache haben, auf den wir zurückgreifen können.
     let etag = cache.as_ref().and_then(|(_, _, meta)| meta.etag.clone());
 
+    let mut remote_rejected = false;
     let reason = match f.get(url, etag.as_deref()).await {
         Ok(Conditional::NotModified) => {
             let (catalog, warnings, _) = cache.expect("ETag nur bei vorhandenem Cache gesendet");
@@ -66,6 +70,7 @@ pub async fn load<F: Fetcher>(f: &F, url: &Url, cache_dir: &Path) -> Loaded {
                 origin: Origin::Remote,
                 warnings,
                 fallback_reason: None,
+                remote_rejected: false,
             };
         }
         Ok(Conditional::Body { bytes, etag }) => match parse(&String::from_utf8_lossy(&bytes)) {
@@ -77,9 +82,13 @@ pub async fn load<F: Fetcher>(f: &F, url: &Url, cache_dir: &Path) -> Loaded {
                     origin: Origin::Remote,
                     warnings,
                     fallback_reason: None,
+                    remote_rejected: false,
                 };
             }
-            Err(e) => format!("Online-Katalog abgelehnt: {e}"),
+            Err(e) => {
+                remote_rejected = true;
+                format!("Online-Katalog abgelehnt: {e}")
+            }
         },
         Err(e) => format!("Online-Katalog nicht erreichbar: {e}"),
     };
@@ -90,6 +99,7 @@ pub async fn load<F: Fetcher>(f: &F, url: &Url, cache_dir: &Path) -> Loaded {
             origin: Origin::Cache,
             warnings,
             fallback_reason: Some(reason),
+            remote_rejected,
         };
     }
     let (catalog, warnings) = bundled().expect("eingebauter Katalog wird durch Tests geprüft");
@@ -98,6 +108,7 @@ pub async fn load<F: Fetcher>(f: &F, url: &Url, cache_dir: &Path) -> Loaded {
         origin: Origin::Bundled,
         warnings,
         fallback_reason: Some(reason),
+        remote_rejected,
     }
 }
 

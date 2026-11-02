@@ -151,5 +151,14 @@
   "error.not_windows_media": "This is not Windows installation media. Use “Own image” for other images.",
   "error.not_verified": "The file has not been verified yet.",
   "error.wimlib_missing": "Windows images over 4 GB need the wimlib-imagex program (Linux: install the “wimtools” package).",
-  "error.not_on_vendor_list": "This file is not on Microsoft's checksum list. It is corrupted, modified or not an original ISO – download it again from the download page."
+  "error.not_on_vendor_list": "This file is not on Microsoft's checksum list. It is corrupted, modified or not an original ISO – download it again from the download page.",
+  "cache.label": "Cache",
+  "cache.title": "Downloaded images",
+  "cache.text": "{n} image(s), {size} in total. They are kept so that a second drive needs no new download.",
+  "cache.partial": "Plus {n} unfinished download(s) that would be resumed next time.",
+  "cache.free": "Free on the drive: {size}",
+  "cache.clear": "Clear …",
+  "cache.confirm": "Yes, delete all",
+  "error.no_space": "Not enough disk space for the download. Clear the cache (bottom right) or free up space on the drive.",
+  "catalog.fallback.incompatible": "The online catalogue does not match this BootForge version – the saved or built-in list is used. Please update BootForge."
 }

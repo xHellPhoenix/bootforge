@@ -49,6 +49,7 @@ async fn offline_uses_cache_then_bundled() {
     // Ohne Cache → eingebaut
     let l = load(&FakeFetcher::offline(), &url(), &dir).await;
     assert_eq!(l.origin, Origin::Bundled);
+    assert!(!l.remote_rejected, "offline ist nicht „abgelehnt“");
     assert!(l.fallback_reason.unwrap().contains("nicht erreichbar"));
 
     // Cache befüllen, dann offline → Cache
@@ -79,6 +80,7 @@ async fn invalid_remote_is_rejected_and_cache_kept() {
     );
     let l = load(&FakeFetcher::new().page(URL, &evil), &url(), &dir).await;
     assert_eq!(l.origin, Origin::Cache);
+    assert!(l.remote_rejected);
     assert!(l.fallback_reason.unwrap().contains("abgelehnt"));
     // Der kaputte Katalog darf den guten Cache NICHT überschrieben haben:
     let cached = std::fs::read_to_string(dir.join("catalog.json")).unwrap();

@@ -158,3 +158,26 @@ async fn cancel_before_start() {
     assert!(matches!(err, DownloadError::Cancelled));
     assert!(!dest.exists());
 }
+
+#[tokio::test]
+async fn refuses_when_disk_is_too_small() {
+    let mut src = FakeSource::new(data(1000));
+    // Der Server behauptet 1 EiB – so viel Platz hat keine Platte.
+    src.claimed_total = Some(1 << 60);
+    let dest = tmp("nospace");
+    let err = download(
+        &src,
+        &url(),
+        &dest,
+        HashAlgorithm::Sha256,
+        &AtomicBool::new(false),
+        |_| {},
+    )
+    .await
+    .unwrap_err();
+    assert!(matches!(err, DownloadError::NoSpace { .. }), "{err}");
+    assert!(
+        !dest.with_file_name("image.iso.part").exists(),
+        "nichts angelegt"
+    );
+}

@@ -9,6 +9,7 @@
 pub mod acquire;
 pub mod catalog;
 pub mod device;
+pub mod disk;
 pub mod download;
 pub mod flash;
 pub mod http;
