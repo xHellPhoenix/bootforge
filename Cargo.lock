@@ -442,7 +442,7 @@ dependencies = [
 
 [[package]]
 name = "bootforge"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "bootforge-core",
  "libc",
@@ -459,7 +459,7 @@ dependencies = [
 
 [[package]]
 name = "bootforge-core"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "bootforge-core",
  "crc32fast",
@@ -486,7 +486,7 @@ dependencies = [
 
 [[package]]
 name = "bootforge-flash-helper"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "bootforge-core",
  "serde",
