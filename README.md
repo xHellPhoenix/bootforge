@@ -17,9 +17,9 @@ und schreibt sie auf den Stick.
 |---|---|---|---|
 | ![](docs/screenshots/phase2-version.png) | ![](docs/screenshots/phase3-progress.png) | ![](docs/screenshots/phase4-hidden.png) | ![](docs/screenshots/phase5-confirm.png) |
 
-| Windows 11 | Eigenes Image |
-|---|---|
-| ![](docs/screenshots/phase6-windows.png) | ![](docs/screenshots/phase6-own.png) |
+| Windows 11 | Eigenes Image | Cache |
+|---|---|---|
+| ![](docs/screenshots/phase6-windows.png) | ![](docs/screenshots/phase6-own.png) | ![](docs/screenshots/phase7-cache.png) |
 
 ## Installieren
 
