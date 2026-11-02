@@ -1,12 +1,30 @@
 <script lang="ts">
   import { lt, t } from "../lib/i18n.svelte";
-  import type { CatalogResponse, Variant } from "../lib/types";
+  import type { CatalogResponse, Distro, ResolveState, Variant } from "../lib/types";
 
   let {
+    distro,
     variant,
+    resolve,
     origin,
     updated,
-  }: { variant: Variant | null; origin: CatalogResponse["origin"]; updated: string } = $props();
+  }: {
+    distro: Distro | null;
+    variant: Variant | null;
+    resolve: ResolveState | undefined;
+    origin: CatalogResponse["origin"];
+    updated: string;
+  } = $props();
+
+  // „Ubuntu Desktop (LTS) 26.04.1“ – den Distro-Namen nicht doppeln („Windows Windows 11“).
+  const label = $derived.by(() => {
+    if (!variant) return "—";
+    const name = lt(variant.name);
+    const prefix = distro && !name.startsWith(distro.name) ? `${distro.name} ` : "";
+    const version = resolve?.status === "ok" ? ` ${resolve.image.version}` : "";
+    return prefix + name + version;
+  });
+  const ready = $derived(resolve?.status === "ok");
 
   // Phase 1: noch keine USB-Erkennung → Forge bleibt gesperrt.
   const usbSelected = false;
@@ -17,7 +35,7 @@
   <div class="summary">
     <div class="slot">
       <span class="label">{t("step.distro")}</span>
-      <span class="value">{variant ? lt(variant.name) : "—"}</span>
+      <span class="value">{label}</span>
     </div>
     <div class="slot">
       <span class="label">{t("step.usb")}</span>
@@ -27,7 +45,7 @@
 
   <div class="right">
     <span class="catalog">{t(`catalog.origin.${origin}`)} · {t("catalog.updated", { date: updated })}</span>
-    <button class="forge" disabled={!variant || !usbSelected} title={hint}>
+    <button class="forge" disabled={!ready || !usbSelected} title={hint}>
       {t("forge.button")}
     </button>
   </div>

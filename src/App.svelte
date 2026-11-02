@@ -2,7 +2,7 @@
   import { onMount } from "svelte";
   import { api } from "./lib/api";
   import { i18n, languages, t } from "./lib/i18n.svelte";
-  import type { AppError, CatalogResponse, Distro, Variant } from "./lib/types";
+  import type { AppError, CatalogResponse, Distro, ResolveState, Variant } from "./lib/types";
   import DistroList from "./components/DistroList.svelte";
   import VariantPanel from "./components/VariantPanel.svelte";
   import ForgeBar from "./components/ForgeBar.svelte";
@@ -14,13 +14,17 @@
   let selectedDistro = $state<Distro | null>(null);
   let selectedVariant = $state<Variant | null>(null);
 
-  // Abgeleiteter Zustand: welcher Schritt ist gerade dran?
-  const currentStep = $derived(selectedVariant ? 2 : 1);
+  /** Ergebnis der Versionsermittlung je Varianten-ID. */
+  let resolved = $state<Record<string, ResolveState>>({});
+
+  // Abgeleiteter Zustand: Schritt 1 ist erst erledigt, wenn die neueste Version feststeht.
+  const currentStep = $derived(selectedVariant && resolved[selectedVariant.id]?.status === "ok" ? 2 : 1);
 
   onMount(async () => {
     try {
       response = await api.getCatalog();
-      selectedDistro = response.catalog.distros[0] ?? null;
+      const first = response.catalog.distros[0];
+      if (first) pickDistro(first);
     } catch (e) {
       error = (e as AppError) ?? { code: "unknown" };
     }
@@ -29,7 +33,24 @@
   function pickDistro(d: Distro) {
     if (selectedDistro?.id !== d.id) {
       selectedDistro = d;
-      selectedVariant = d.variants.length === 1 ? d.variants[0] : null;
+      selectedVariant = null;
+      if (d.variants.length === 1) pickVariant(d.variants[0]);
+    }
+  }
+
+  function pickVariant(v: Variant) {
+    selectedVariant = v;
+    // Schon erfolgreich ermittelt oder gerade am Laden? Dann nicht nochmal fragen.
+    const current = resolved[v.id];
+    if (!current || current.status === "error") resolveVariant(v.id);
+  }
+
+  async function resolveVariant(id: string, force = false) {
+    resolved[id] = { status: "loading" };
+    try {
+      resolved[id] = { status: "ok", image: await api.resolveLatest(id, force) };
+    } catch (e) {
+      resolved[id] = { status: "error", error: (e as AppError) ?? { code: "unknown" } };
     }
   }
 </script>
@@ -63,16 +84,25 @@
   {:else if !response}
     <div class="state">{t("catalog.loading")}</div>
   {:else}
+    {#if response.origin !== "remote"}
+      <div class="banner" title={response.fallback_reason ?? ""}>
+        ⚠ {t(`catalog.fallback.${response.origin}`)}
+      </div>
+    {/if}
     <main>
       <DistroList catalog={response.catalog} selected={selectedDistro} onpick={pickDistro} />
       <VariantPanel
         distro={selectedDistro}
         selected={selectedVariant}
-        onpick={(v) => (selectedVariant = v)}
+        {resolved}
+        onpick={pickVariant}
+        onretry={(id) => resolveVariant(id, true)}
       />
     </main>
     <ForgeBar
+      distro={selectedDistro}
       variant={selectedVariant}
+      resolve={selectedVariant ? resolved[selectedVariant.id] : undefined}
       origin={response.origin}
       updated={response.catalog.updated}
     />
@@ -97,7 +127,7 @@
 <style>
   .shell {
     display: grid;
-    grid-template-rows: auto 1fr auto;
+    grid-template-rows: auto auto 1fr auto;
     height: 100%;
   }
 
@@ -140,13 +170,30 @@
     padding: 4px 8px;
   }
 
+  /* Feste Zeilen: Ohne Banner bliebe Zeile 2 leer, und das Grid würde die Fußleiste dort
+     hineinsetzen (automatische Platzierung). */
+  .banner {
+    grid-row: 2;
+    padding: 8px 20px;
+    font-size: 12.5px;
+    color: var(--warn);
+    background: color-mix(in srgb, var(--warn) 10%, var(--bg));
+    border-bottom: 1px solid color-mix(in srgb, var(--warn) 30%, transparent);
+  }
+
   main {
+    grid-row: 3;
     display: grid;
     grid-template-columns: minmax(260px, 340px) 1fr;
     min-height: 0; /* damit die Spalten selbst scrollen können */
   }
 
+  .shell > :global(footer) {
+    grid-row: 4;
+  }
+
   .state {
+    grid-row: 3;
     display: grid;
     place-content: center;
     gap: 8px;

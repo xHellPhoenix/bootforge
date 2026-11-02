@@ -1,8 +1,10 @@
 //! Distro-Katalog: Datenmodell, Laden/Parsen und Validierung.
 //!
-//! Phase 1: Modell + Parsen + Validierung + eingebauter Fallback-Katalog.
-//! Phase 2: Laden über HTTPS mit Cache und Ermittlung der neuesten Version.
+//! - `model`: Datenmodell (= Katalogformat)
+//! - `validate`: inhaltliche Prüfung
+//! - `load`: Laden über HTTPS mit Cache und eingebautem Fallback
 
+pub mod load;
 pub mod model;
 pub mod validate;
 

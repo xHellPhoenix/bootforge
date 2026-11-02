@@ -91,7 +91,42 @@ keinen Zugriff auf den App-Code. Die Kopie in `catalog/` wird beim Bauen als Fal
 Fallback auf Deutsch. Für zwei Sprachen reicht das. Wird es mehr (Plural-Regeln, Datumsformate),
 kann man auf eine Bibliothek wie `svelte-i18n` wechseln.
 
+### E11 – Katalog laden: Online → Cache → eingebaut
+Die App startet **immer**, auch offline. Der Online-Katalog wird per ETag abgefragt: Hat er sich
+nicht geändert, antwortet GitHub mit „304 Not Modified“ ohne Inhalt. Ein ungültiger Online-Katalog
+überschreibt **nie** den guten Cache. Der Cache wird beim Lesen erneut geprüft, denn er könnte
+beschädigt sein. Geschrieben wird atomar (temporäre Datei + Umbenennen), damit ein Absturz keine
+halbe Datei hinterlässt. Die GUI zeigt an, woher der Katalog stammt, und warum, falls nicht online.
+
+### E12 – `Fetcher`-Trait statt direktem `reqwest`
+Der Resolver kennt nur das Trait `Fetcher` (`get`, `content_length`). In der App steckt dahinter
+`reqwest`, in den Tests ein `FakeFetcher` mit vorbereiteten Antworten. So prüfen die Tests echte
+Server-Eigenheiten (leeres Fedora-`45/`, Leaps `42.3/`, das flache TrueNAS-Listing) ohne Internet,
+schnell und reproduzierbar. Dieses Muster heißt *Dependency Injection*.
+
+### E13 – Sicherheit im HTTP-Client
+- `https_only(true)`: Auch eine Weiterleitung von HTTPS auf HTTP wird abgelehnt.
+- URLs aus Antworten (JSON-APIs) werden zusätzlich auf HTTPS geprüft.
+- Textantworten sind auf 32 MB begrenzt (TrueNAS-Listing: ~12 MB) und werden beim Lesen mitgezählt,
+  weil `Content-Length` fehlen oder falsch sein kann.
+- Prüfsummen aus APIs müssen exakt zum Algorithmus passen (z. B. 64 Hex-Zeichen bei SHA-256).
+- Pfade aus Listings mit `..` werden verworfen.
+- Ein einziger automatischer Wiederholungsversuch bei Netzwerkfehlern, nicht bei HTTP-Fehlern.
+  (Beim Testen gab es einen kurzen Aussetzer bei `mirrors.kernel.org`.)
+
+### E14 – Begrenztes Backtracking
+Ist die höchste Version eine Sackgasse (leeres Verzeichnis, 404), probiert der Resolver die
+nächste, aber höchstens 3 pro Schritt. Ein kaputter Katalogeintrag kann so keinen Server mit
+Anfragen fluten.
+
+### E15 – Rust-Rekursion mit `async` braucht `Box::pin`
+Das Durchlaufen der Listing-Schritte ist rekursiv. Ein `async fn`, das sich selbst aufruft, hätte
+ein Future, das sich selbst enthält, also unendliche Größe. `Box::pin` legt das innere Future auf
+den Heap; dann ist nur ein Zeiger im äußeren Future gespeichert.
+
 ## Offene Punkte für spätere Phasen
+- GitHub Action im Katalog-Repo, die `resolve_all` regelmäßig laufen lässt und bei kaputten
+  Einträgen ein Issue öffnet (Phase 7).
 - TypeScript-Typen werden noch von Hand gepflegt (`src/lib/types.ts`). Später eventuell mit
   `specta`/`ts-rs` generieren.
 - Windows: `requireAdministrator`-Manifest in `build.rs` (Phase 5).

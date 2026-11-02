@@ -27,5 +27,22 @@
   "catalog.updated": "Stand {date}",
   "error.catalog_invalid": "Der Katalog ist fehlerhaft.",
   "error.unknown": "Unbekannter Fehler.",
-  "error.details": "Details"
+  "error.details": "Details",
+  "catalog.fallback.cache": "Online-Katalog nicht erreichbar – zuletzt gespeicherte Version wird verwendet.",
+  "catalog.fallback.bundled": "Online-Katalog nicht erreichbar – eingebaute Version wird verwendet. Sie ist eventuell nicht aktuell.",
+  "resolve.loading": "Suche neueste Version …",
+  "resolve.latest": "Neueste Version",
+  "resolve.file": "Datei",
+  "resolve.size": "Größe",
+  "resolve.source": "Quelle",
+  "resolve.retry": "Erneut versuchen",
+  "resolve.size_unknown": "unbekannt",
+  "error.network": "Keine Verbindung zum Server.",
+  "error.server": "Der Server hat mit einem Fehler geantwortet.",
+  "error.no_match": "Die neueste Version konnte nicht gefunden werden. Vermutlich hat sich die Download-Seite geändert – der Katalog muss angepasst werden.",
+  "error.not_supported_yet": "Wird in einer späteren Version unterstützt.",
+  "error.insecure": "Die Quelle ist nicht sicher (kein HTTPS) und wurde blockiert.",
+  "error.catalog_not_loaded": "Der Katalog ist noch nicht geladen.",
+  "error.unknown_variant": "Diese Variante gibt es im Katalog nicht.",
+  "error.internal": "Interner Fehler."
 }

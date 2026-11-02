@@ -1,12 +1,21 @@
 <script lang="ts">
   import { lt, t } from "../lib/i18n.svelte";
-  import type { Distro, Variant } from "../lib/types";
+  import type { Distro, ResolveState, Variant } from "../lib/types";
+  import ResolvedInfo from "./ResolvedInfo.svelte";
 
   let {
     distro,
     selected,
+    resolved,
     onpick,
-  }: { distro: Distro | null; selected: Variant | null; onpick: (v: Variant) => void } = $props();
+    onretry,
+  }: {
+    distro: Distro | null;
+    selected: Variant | null;
+    resolved: Record<string, ResolveState>;
+    onpick: (v: Variant) => void;
+    onretry: (variantId: string) => void;
+  } = $props();
 
   /** Wie gut ist die Integrität abgesichert? Wird als farbiger Chip angezeigt. */
   function integrity(v: Variant): { label: string; tone: "ok" | "warn" | "" } {
@@ -48,6 +57,9 @@
             {#if v.notes}<span class="note">{lt(v.notes)}</span>{/if}
           </span>
         </button>
+        {#if selected?.id === v.id && resolved[v.id]}
+          <ResolvedInfo state={resolved[v.id]} onretry={() => onretry(v.id)} />
+        {/if}
       {/each}
     </div>
   {/if}
