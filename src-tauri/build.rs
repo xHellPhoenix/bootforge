@@ -1,4 +1,4 @@
-/// Windows-Manifest für Release-Builds (`windows-app-manifest.xml`): BootForge startet immer mit
+/// Windows-Manifest für Release-Builds (`windows-app-manifest.xml`): SealFlash startet immer mit
 /// Administratorrechten (UAC-Abfrage), weil das Schreiben auf `\\.\PhysicalDriveN` sie erfordert.
 /// Die Common-Controls-Abhängigkeit entspricht Tauris Standard-Manifest (moderne Dialoge).
 ///

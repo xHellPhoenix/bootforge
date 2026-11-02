@@ -12,18 +12,18 @@ richtige App mit Oberfläche und braucht zusätzlich Node.js.
    „Als Administrator ausführen“. Zum Schreiben auf einen Datenträger verlangt Windows Adminrechte.
 2. In den Projektordner wechseln und den neuesten Stand holen:
    ```powershell
-   cd $HOME\bootforge
+   cd $HOME\sealflash
    git fetch
    git checkout phase-5-flash
    ```
 3. Nachsehen, welche Nummer dein Stick hat:
    ```powershell
-   cargo run --release -p bootforge-core --example list_drives
+   cargo run --release -p sealflash-core --example list_drives
    ```
    Beispiel: `\\.\PhysicalDrive1  8.0 GB  Generic Flash Disk  ✔ WÄHLBAR` → Nummer **1**.
 4. Debian netinst (≈ 790 MB) auf den Stick schreiben:
    ```powershell
-   cargo run --release -p bootforge-core --example forge -- debian-netinst 1
+   cargo run --release -p sealflash-core --example forge -- debian-netinst 1
    ```
    Das Programm zeigt den Stick und fragt nach seinem Namen (z. B. `Generic Flash Disk`).
    Erst wenn du ihn richtig eintippst, wird geschrieben.
@@ -57,12 +57,12 @@ auf dem Stick nicht. Die App weist nach dem Schreiben unter Windows auch selbst 
 Zusätzlich [Node.js LTS](https://nodejs.org) installieren, dann in einer **Administrator**-PowerShell:
 
 ```powershell
-cd $HOME\bootforge
+cd $HOME\sealflash
 npm install
 npm run tauri dev
 ```
 
-Debian → Netinst → „Stick wählen …“ → deinen Stick → „Forge!“ → Namen eintippen → „Löschen und schreiben“.
+Debian → Netinst → „Stick wählen …“ → deinen Stick → „Flash!“ → Namen eintippen → „Löschen und schreiben“.
 
 (In der fertigen App fragt Windows beim Start automatisch nach Adminrechten. Beim Entwickeln mit
 `tauri dev` passiert das nicht, deshalb hier die Administrator-PowerShell.)

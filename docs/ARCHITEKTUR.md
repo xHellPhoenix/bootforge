@@ -1,12 +1,12 @@
 # Architektur & Entscheidungen
 
-Diese Datei hält fest, **warum** BootForge so gebaut ist. Neue Entscheidungen werden unten ergänzt.
+Diese Datei hält fest, **warum** SealFlash so gebaut ist. Neue Entscheidungen werden unten ergänzt.
 
 ## Überblick
 
 ```text
 ┌──────────────── GUI (Svelte, läuft im WebView) ────────────────┐
-│  Distro wählen → Stick wählen → Forge! → Fortschritt            │
+│  Distro wählen → Stick wählen → Flash! → Fortschritt            │
 └───────────────┬─────────────────────────────────▲──────────────┘
                 │ invoke("get_catalog")            │ Events (Fortschritt, ab Phase 3)
 ┌───────────────▼─────────────────────────────────┴──────────────┐
@@ -14,7 +14,7 @@ Diese Datei hält fest, **warum** BootForge so gebaut ist. Neue Entscheidungen w
 └───────────────┬────────────────────────────────────────────────┘
                 │ normale Rust-Funktionsaufrufe
 ┌───────────────▼────────────────────────────────────────────────┐
-│  bootforge-core – Katalog, Versionsermittlung, Download,        │
+│  sealflash-core – Katalog, Versionsermittlung, Download,        │
 │  Prüfsummen/GPG, USB-Erkennung, Flashen (keine GUI-Abhängigkeit)│
 └────────────────────────────────────────────────────────────────┘
            (Linux, ab Phase 5: kleiner Flash-Helper via pkexec)
@@ -22,7 +22,7 @@ Diese Datei hält fest, **warum** BootForge so gebaut ist. Neue Entscheidungen w
 
 ## Entscheidungen
 
-### E1 – Cargo-Workspace mit eigenem `bootforge-core`
+### E1 – Cargo-Workspace mit eigenem `sealflash-core`
 **Warum:** Die gefährlichen Teile (Laufwerke erkennen, Rohdaten schreiben) sollen mit
 `cargo test` prüfbar sein, ohne ein Fenster zu öffnen. Außerdem soll der spätere Linux-Helper,
 der mit Root-Rechten läuft, *dieselben* Sicherheitsprüfungen nutzen, aber möglichst wenig Code
@@ -81,8 +81,8 @@ aufklappbar für Techniker. So bleibt die Mehrsprachigkeit im Frontend, und das 
 Sprache kennen.
 
 ### E10 – Katalog in eigenem Repo
-Der Katalog liegt in [`xHellPhoenix/bootforge-catalog`](https://github.com/xHellPhoenix/bootforge-catalog),
-die App in `xHellPhoenix/bootforge`. **Warum:** Ein neuer Distro-Eintrag oder eine korrigierte Regex
+Der Katalog liegt in [`xHellPhoenix/sealflash-catalog`](https://github.com/xHellPhoenix/sealflash-catalog),
+die App in `xHellPhoenix/sealflash`. **Warum:** Ein neuer Distro-Eintrag oder eine korrigierte Regex
 soll sofort bei allen Nutzern ankommen, ohne neue App-Version. Und wer nur den Katalog pflegt, braucht
 keinen Zugriff auf den App-Code. Die Kopie in `catalog/` wird beim Bauen als Fallback eingebettet.
 
@@ -215,7 +215,7 @@ aufwendig. Ein Scan dauert nur Millisekunden. Vor dem Schreiben (Phase 5) wird d
 ohnehin noch einmal frisch geprüft.
 
 ### E27 – Entwickler-Schalter nur in Debug-Builds
-`BOOTFORGE_DEV_SYSROOT` lässt die App einen nachgebauten `/sys`-Baum lesen, um die GUI ohne echten
+`SEALFLASH_DEV_SYSROOT` lässt die App einen nachgebauten `/sys`-Baum lesen, um die GUI ohne echten
 Stick zu testen. Der Code dafür steht hinter `cfg(debug_assertions)` und ist in Release-Builds gar
 nicht vorhanden, damit niemand einer echten Installation ein falsches Laufwerk unterschieben kann.
 
@@ -241,7 +241,7 @@ käme das Zurücklesen aus dem RAM und würde nichts beweisen. Dafür müssen Pu
 sein. Der letzte Block wird deshalb mit Nullen aufgefüllt.
 
 ### E30 – Laufwerk unmittelbar vor dem Schreiben neu prüfen
-Zwischen Auswahl und „Forge!“ kann viel passieren. Unter Linux bekommt ein neu eingesteckter Stick
+Zwischen Auswahl und „Flash!“ kann viel passieren. Unter Linux bekommt ein neu eingesteckter Stick
 sogar oft denselben Namen `/dev/sdb`. `device::recheck` scannt deshalb neu, wendet alle Regeln erneut
 an und vergleicht Größe, Name und Seriennummer. Diese Prüfung läuft **in dem Prozess, der schreibt**
 (unter Linux also im Root-Helper), und verlässt sich nicht auf das, was die GUI schickt.
@@ -254,7 +254,7 @@ Jeder Schreibversuch braucht eine neue Bestätigung.
 
 ### E32 – Linux: kleiner Root-Helper über pkexec
 Die GUI läuft als normaler Nutzer. WebKitGTK mit Root-Rechten wäre eine riesige Angriffsfläche.
-Geschrieben wird von `bootforge-flash-helper`: kein Netzwerk, keine GUI, eine Aufgabe. Er bekommt die
+Geschrieben wird von `sealflash-flash-helper`: kein Netzwerk, keine GUI, eine Aufgabe. Er bekommt die
 Anfrage als JSON über stdin und meldet Fortschritt als JSON-Zeilen. Er **misstraut** der Anfrage:
 - Das Laufwerk wird neu erkannt und muss alle Regeln erfüllen.
 - Das Image muss eine normale Datei sein (kein Symlink) und dem aufrufenden Nutzer gehören
@@ -286,13 +286,13 @@ Mit `resolver = "3"` wählt Cargo nur Paketversionen, die mit der angegebenen Mi
 Die npm-Pakete waren aber schon 2.12, und `tauri dev` meldete einen Versions-Mismatch. Jetzt steht
 dort `1.90`, und Rust- und npm-Seite von Tauri sind wieder auf derselben Minor-Version.
 
-### E36 – Windows-ISOs lädt der Nutzer selbst herunter, BootForge prüft sie
+### E36 – Windows-ISOs lädt der Nutzer selbst herunter, SealFlash prüft sie
 Microsoft bietet keinen offenen Download-Link an. Die Download-Seite fordert die Links über eine
 Schnittstelle mit Bot-Schutz an. Den zu umgehen wäre technisch möglich, verstößt aber gegen
 Microsofts Regeln und kann jederzeit brechen, deshalb machen wir das bewusst **nicht**. Stattdessen:
 1. „Download-Seite öffnen“ öffnet Microsofts Seite im Browser des Nutzers.
 2. Der Nutzer wählt die heruntergeladene ISO aus.
-3. BootForge lädt dieselbe Seite über HTTPS und liest die **von Microsoft veröffentlichte Tabelle
+3. SealFlash lädt dieselbe Seite über HTTPS und liest die **von Microsoft veröffentlichte Tabelle
    der SHA-256-Werte** aus (Katalog: `"checksum": {"type": "page_listing"}`). Steht der Hash der
    Datei nicht darin, wird nicht geschrieben. Ist die Tabelle leer (Seite umgebaut), ist das ein
    Fehler und kein „Durchwinken“.
@@ -304,7 +304,7 @@ wie bei Downloads: Beschädigte oder manipulierte Dateien fallen so auf. Der Sch
 automatisch erkannt (Windows-Installer oder 1:1). Bei einem ISO ohne Bootsektor warnt die GUI.
 
 ### E38 – Windows-Stick: GPT + FAT32 statt 1:1-Abbild
-Windows-ISOs sind keine Hybrid-ISOs: 1:1 auf einen Stick geschrieben, startet davon kein PC. BootForge
+Windows-ISOs sind keine Hybrid-ISOs: 1:1 auf einen Stick geschrieben, startet davon kein PC. SealFlash
 baut den Stick deshalb wie Rufus im UEFI-Standardmodus: GPT mit einer FAT32-Partition
 („Microsoft Basic Data“) und alle Dateien der ISO darauf. UEFI-Firmware startet `efi\boot\bootx64.efi`
 direkt von FAT32, auch mit Secure Boot, weil die Datei von Microsoft signiert ist.
@@ -343,7 +343,7 @@ Fortlaufende Dateiinhalte kommen so ganz ohne vorheriges Lesen aus.
 
 ### E42 – Windows-ISOs am UDF-Dateisystem erkennen
 Microsofts ISOs sind „UDF-Bridge“-Images: Alle Dateien stehen nur im UDF-Teil, der ISO9660-Teil
-enthält nur eine `README.TXT` („This disc contains a UDF file system …“). BootForge liest deshalb das
+enthält nur eine `README.TXT` („This disc contains a UDF file system …“). SealFlash liest deshalb das
 UDF-Hauptverzeichnis selbst (`local::udf`, ca. 150 Zeilen nach ECMA-167) und sucht `sources/` und
 `bootmgr`. Die Testdatei `windows-udf-only.iso` hat genau diesen Aufbau (`genisoimage -udf -hide …`).
 
@@ -351,14 +351,14 @@ UDF-Hauptverzeichnis selbst (`local::udf`, ca. 150 Zeilen nach ECMA-167) und suc
 `tauri-plugin-dialog` und `tauri-plugin-opener` werden nur aus Rust benutzt. In
 `capabilities/default.json` steht weiterhin nur `core:default`, das Frontend kann also weder Dateien
 lesen noch beliebige Programme oder Adressen öffnen. „Download-Seite öffnen“ übergibt nur die
-Varianten-ID, die Adresse kommt aus dem Katalog (und muss HTTPS sein). „Forge!“ mit eigener Datei
+Varianten-ID, die Adresse kommt aus dem Katalog (und muss HTTPS sein). „Flash!“ mit eigener Datei
 akzeptiert nur Pfade, die vorher im Backend geprüft wurden. Beim Schreiben wird ohnehin noch einmal
 gehasht.
 
 ### E44 – Privates Arbeitsverzeichnis für Zwischendateien
 Die aufgeteilten `.swm`-Dateien entstehen in einem neu angelegten Verzeichnis mit Zufallsnamen und
 Modus 0700, unter Linux in `/var/tmp` (liegt auf der Platte, `/tmp` ist oft eine RAM-Disk). Ein fester
-Name wie `/tmp/bootforge` wäre gefährlich, weil der Helper als root läuft: Ein anderer Benutzer könnte
+Name wie `/tmp/sealflash` wäre gefährlich, weil der Helper als root läuft: Ein anderer Benutzer könnte
 das Verzeichnis vorher anlegen und Symlinks hineinlegen, und root würde dann fremde Dateien
 überschreiben.
 
@@ -372,14 +372,14 @@ komprimierte Datei. `xz2` kompiliert liblzma 5.2 mit. Die Versionen 5.6.0/5.6.1 
 Ein AppImage ist eine Datei, die sich beim Start per FUSE selbst einbindet. Der Root-Helper müsste
 dann aus diesem Einhängepunkt gestartet werden. Den darf root aber standardmäßig gar nicht lesen
 (FUSE ohne `allow_other`). Außerdem nennt die polkit-Regel einen festen Pfad. Das .deb/.rpm
-installiert den Helper nach `/usr/lib/bootforge/`, die polkit-Regel nach
+installiert den Helper nach `/usr/lib/sealflash/`, die polkit-Regel nach
 `/usr/share/polkit-1/actions/` und zieht `wimtools`/`wimlib-utils` und pkexec als Abhängigkeiten
 mit. Gebaut wird das .deb auf Ubuntu 22.04, damit es auch auf älteren Systemen installierbar ist:
 Die Mindestversionen der Bibliotheken richten sich nach dem System, auf dem gebaut wurde.
 
-### E47 – Release-App startet nur den Helper aus `/usr/lib/bootforge`
+### E47 – Release-App startet nur den Helper aus `/usr/lib/sealflash`
 Im Debug-Build sucht die App den Helper auch neben sich selbst (bequem beim Entwickeln). Im
-Release-Build nur unter `/usr/lib/bootforge/`. Dorthin kann nur root schreiben, und dieser Pfad steht
+Release-Build nur unter `/usr/lib/sealflash/`. Dorthin kann nur root schreiben, und dieser Pfad steht
 in der polkit-Regel. Läge die App z. B. in einem vom Benutzer beschreibbaren Ordner, könnte sonst
 jemand dort einen veränderten „Helper“ ablegen. Der würde mit Administratorrechten laufen, sobald
 der Benutzer das Passwort eingibt.
@@ -388,7 +388,7 @@ der Benutzer das Passwort eingibt.
 wimlib veröffentlicht keine Prüfsummen oder Signaturen. Der SHA-256 des Windows-Pakets wurde beim
 ersten Download festgehalten („Trust on first use“) und steht in `fetch-wimlib.ps1`. Jeder spätere
 Download, lokal oder im CI, muss exakt passen. So kann eine später manipulierte Datei auf dem Server
-nicht unbemerkt in unseren Installer gelangen. wimlib steht unter der GPLv3+, genau wie BootForge.
+nicht unbemerkt in unseren Installer gelangen. wimlib steht unter der GPLv3+, genau wie SealFlash.
 Deshalb liegen die Lizenztexte im Installer, und jedes Release enthält den Quelltext
 (`wimlib-1.14.5.tar.gz`). [THIRD-PARTY.md](../THIRD-PARTY.md) listet alle Abhängigkeiten mit
 Lizenz und wird mit `scripts/third_party.py` erzeugt.
@@ -396,7 +396,7 @@ Lizenz und wird mit `scripts/third_party.py` erzeugt.
 ### E49 – Release als Entwurf, mit SHA256SUMS
 Der Release-Workflow veröffentlicht nichts selbst, sondern legt einen Entwurf an. Ein Mensch prüft
 und veröffentlicht. `SHA256SUMS.txt` über alle Dateien gibt Nutzern dieselbe Prüfmöglichkeit, die
-BootForge selbst bei Distributionen verlangt. Der Windows-Installer ist (noch) nicht code-signiert:
+SealFlash selbst bei Distributionen verlangt. Der Windows-Installer ist (noch) nicht code-signiert:
 Ein Zertifikat kostet Geld, SmartScreen warnt deshalb beim ersten Start.
 
 ### E50 – Speicherplatz vor dem Download prüfen, Cache sichtbar machen
@@ -405,6 +405,16 @@ das Laufwerk passt. Ein Abbruch bei 95 % wegen voller Platte wäre ärgerlich. H
 bleiben im Cache (zweiter Stick ohne neuen Download). Unten rechts zeigt die App, wie viel Platz das
 belegt, und kann ihn leeren. Gelöscht werden nur Dateien direkt im Cache-Ordner, Links werden nicht
 verfolgt.
+
+### E51 – Umbenennung BootForge → SealFlash (0.2.0)
+„BootForge“ wird bereits von anderen USB-Boot-Tools verwendet (eine Android-App, ein
+Windows-Programm mit „™“ und ein Open-Source-Projekt). Um Verwechslungen und Ärger mit Markenrechten
+zu vermeiden, heißt das Projekt ab 0.2.0 **SealFlash**: „versiegelt geflasht“ steht für das, was es von
+anderen Tools abhebt, nämlich dass nur geprüfte Images auf den Stick kommen. Geändert wurden App-Name,
+Kennung (`io.github.xhellphoenix.sealflash`), Crate- und Repo-Namen, Helper-Pfad
+(`/usr/lib/sealflash/`), polkit-Regel, Katalog-URL, Umgebungsvariablen (`SEALFLASH_*`) und das
+Volume-Label der Windows-Sticks. Weil sich die Kennung ändert, legt die App neue Ordner für Cache und
+Einstellungen an. Bereits heruntergeladene Images aus BootForge werden nicht übernommen.
 
 ## Offene Punkte
 - **Kompatibilität des Online-Katalogs:** Wegen `deny_unknown_fields` lehnt eine ältere App einen

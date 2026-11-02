@@ -1,4 +1,4 @@
-// TypeScript-Gegenstück zum Rust-Datenmodell (crates/bootforge-core/src/catalog/model.rs).
+// TypeScript-Gegenstück zum Rust-Datenmodell (crates/sealflash-core/src/catalog/model.rs).
 // Wichtig: Änderungen am Katalogformat immer an beiden Stellen nachziehen.
 // (Später kann man das mit `specta`/`ts-rs` automatisch generieren lassen.)
 
@@ -208,7 +208,7 @@ export interface LocalImage {
   info: ImageInfo;
 }
 
-/** Woher „Forge!“ das Image nimmt. */
+/** Woher „Flash!“ das Image nimmt. */
 export type ForgeSource = { type: "catalog"; variant_id: string } | { type: "local"; path: string };
 
 // --- Phase 7 ------------------------------------------------------------------------------------

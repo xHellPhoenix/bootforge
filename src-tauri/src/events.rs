@@ -1,5 +1,5 @@
-use bootforge_core::acquire::AcquireEvent;
-use bootforge_core::flash::FlashEvent;
+use sealflash_core::acquire::AcquireEvent;
+use sealflash_core::flash::FlashEvent;
 use serde::Serialize;
 
 /// Fortschritt von „Forge!“: erst Beschaffen (Phase 3), dann Schreiben.

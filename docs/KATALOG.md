@@ -1,7 +1,7 @@
 # Katalogformat
 
 Der Katalog ist eine JSON-Datei (`catalog/catalog.json`). Das maßgebliche Format ist das
-JSON-Schema `catalog/catalog.schema.json`; es wird aus `crates/bootforge-core/src/catalog/model.rs`
+JSON-Schema `catalog/catalog.schema.json`; es wird aus `crates/sealflash-core/src/catalog/model.rs`
 generiert. Editoren wie VS Code nutzen es automatisch (wegen `"$schema"` in der Datei) für
 Autovervollständigung und Fehlermarkierungen.
 
@@ -40,7 +40,7 @@ Für Hersteller mit API (Pop!_OS). Felder werden per JSON-Pointer gelesen (`/url
 Neuestes Release eines GitHub-Repos, Asset per Regex.
 
 ### `manual`
-Das Image lädt der Nutzer selbst herunter (Windows 10/11, siehe Architektur E36). BootForge öffnet
+Das Image lädt der Nutzer selbst herunter (Windows 10/11, siehe Architektur E36). SealFlash öffnet
 nur `download_page` im Browser. `filename_pattern` beschreibt, wie die Datei typischerweise heißt.
 
 ```json

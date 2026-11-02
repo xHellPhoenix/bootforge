@@ -5,7 +5,7 @@
 
 # Echte Prüfsummen- und Signaturdateien der Distros: NIE verändern, sonst sind die Signaturen
 # ungültig und die GPG-Tests schlagen fehl.
-crates/bootforge-core/tests/fixtures/** -text
+crates/sealflash-core/tests/fixtures/** -text
 
 *.png binary
 *.ico binary

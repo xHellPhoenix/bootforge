@@ -7,11 +7,13 @@
    - `package.json` → `version`
    - `src-tauri/tauri.conf.json` → `version`
 2. `python3 scripts/third_party.py > THIRD-PARTY.md` (Lizenzliste aktualisieren), committen.
-3. Tag setzen und hochladen:
+3. Tag setzen, entweder per Terminal:
    ```bash
-   git tag v0.1.0
-   git push origin v0.1.0
+   git tag v0.2.0
+   git push origin v0.2.0
    ```
+   oder auf GitHub: *Releases → Draft a new release → Tag `v0.2.0` neu anlegen → **Publish release***.
+   (Ein nur gespeicherter Entwurf legt den Tag noch nicht an und startet deshalb keinen Build.)
 4. Der Workflow **Release** (`.github/workflows/release.yml`) baut auf GitHub:
    - Windows: `…_x64-setup.exe` (NSIS) und `…_x64_de-DE.msi` / `…_en-US.msi`,
    - Linux (Ubuntu 22.04): `…_amd64.deb` und `….x86_64.rpm`,
@@ -38,13 +40,13 @@ Die Pakete liegen dann unter `target/release/bundle/`. Plattformabhängige Einst
 automatisch über `tauri.conf.json`.
 
 - **Linux:** `beforeBuildCommand` baut zusätzlich den Root-Helper. Das .deb/.rpm legt ihn nach
-  `/usr/lib/bootforge/` und die polkit-Regel nach `/usr/share/polkit-1/actions/`.
+  `/usr/lib/sealflash/` und die polkit-Regel nach `/usr/share/polkit-1/actions/`.
 - **Windows:** Die Zusatz-Konfiguration `tauri.windows-release.conf.json` führt vorher
   `packaging/windows/fetch-wimlib.ps1` aus. Sie ist bewusst getrennt: Tauri prüft eingetragene
   Ressourcen bei *jedem* Kompilieren. Stünde wimlib in der normalen Konfiguration, würden
   `cargo test` und `tauri dev` ohne vorherigen Download scheitern. Das Skript lädt
   wimlib 1.14.5 und bricht ab, wenn der SHA-256 nicht passt. `wimlib-imagex.exe` und
-  `libwim-15.dll` landen im Installationsordner neben `bootforge.exe`, die Lizenztexte unter
+  `libwim-15.dll` landen im Installationsordner neben `sealflash.exe`, die Lizenztexte unter
   `licenses\`.
 
 ## wimlib aktualisieren

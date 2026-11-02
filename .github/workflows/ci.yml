@@ -1,4 +1,4 @@
-# Baut und testet BootForge bei jedem Push und Pull Request – unter Linux UND Windows.
+# Baut und testet SealFlash bei jedem Push und Pull Request – unter Linux UND Windows.
 # So wird der Windows-Code (WMI, CNG-Krypto) geprüft, obwohl die Entwicklung unter Linux läuft.
 name: CI
 

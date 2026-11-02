@@ -13,23 +13,23 @@ Terminal als Administrator.
    „Als Administrator ausführen“).
 2. Neuesten Stand holen:
    ```powershell
-   cd $HOME\bootforge
+   cd $HOME\sealflash
    git fetch
    git checkout phase-6-windows
    npm install
    ```
 3. **wimlib** besorgen. Die Datei `install.wim` in Windows-11-ISOs ist größer als 4 GB. FAT32 kann
-   so große Dateien nicht speichern, deshalb teilt BootForge sie mit `wimlib-imagex` auf (in Phase 7
+   so große Dateien nicht speichern, deshalb teilt SealFlash sie mit `wimlib-imagex` auf (in Phase 7
    liegt das Programm der App bei).
    - Von <https://wimlib.net/downloads/> die Windows-Version (x86_64, „binary“) herunterladen und
      entpacken.
-   - `wimlib-imagex.exe` **und** `libwim-15.dll` nach `bootforge\target\debug\` kopieren (neben
-     `bootforge.exe`; den Ordner gibt es nach dem ersten Start). Alternativ den entpackten Ordner
+   - `wimlib-imagex.exe` **und** `libwim-15.dll` nach `sealflash\target\debug\` kopieren (neben
+     `sealflash.exe`; den Ordner gibt es nach dem ersten Start). Alternativ den entpackten Ordner
      zum `PATH` hinzufügen.
 4. Katalog mit Windows-Einträgen verwenden. Er liegt noch auf einem eigenen Zweig, weil ältere
    App-Versionen die neuen Felder ablehnen würden:
    ```powershell
-   $env:BOOTFORGE_CATALOG_URL = "https://raw.githubusercontent.com/xHellPhoenix/bootforge-catalog/windows-manual-other/catalog.json"
+   $env:SEALFLASH_CATALOG_URL = "https://raw.githubusercontent.com/xHellPhoenix/sealflash-catalog/windows-manual-other/catalog.json"
    npm run tauri dev
    ```
 
@@ -39,18 +39,18 @@ Terminal als Administrator.
 2. **„Download-Seite öffnen“** öffnet Microsofts Seite im Browser. Dort unter „Datenträgerimage (ISO)
    herunterladen“ *Windows 11 (multi-edition ISO for x64 devices)* und die Sprache wählen, dann die
    ISO speichern (≈ 5–7 GB).
-3. In BootForge **„Datei wählen …“** und die ISO auswählen. BootForge
+3. In SealFlash **„Datei wählen …“** und die ISO auswählen. SealFlash
    - erkennt, dass es ein Windows-Installationsmedium ist,
    - lädt Microsofts Prüfsummenliste von derselben Seite,
    - berechnet die SHA-256 der Datei (dauert ca. 30 s) und sucht sie in der Liste.
 
    Erwartet: **„✓ Geprüft – die Prüfsumme steht in Microsofts Liste.“**, Schreibmodus
    „Windows-Installer“.
-4. Stick wählen → **Forge!** → Namen eintippen. Erwartete Schritte:
+4. Stick wählen → **Flash!** → Namen eintippen. Erwartete Schritte:
    Stick erneut prüfen → Image vor dem Schreiben prüfen → Stick vorbereiten → *install.wim
    aufteilen* → Partitionstabelle anlegen (GPT) → Mit FAT32 formatieren → Dateien kopieren →
    Zurücklesen und vergleichen.
-5. Danach im Explorer: Der Stick heißt **BOOTFORGE** und enthält `sources\install.swm`,
+5. Danach im Explorer: Der Stick heißt **SEALFLASH** und enthält `sources\install.swm`,
    `install2.swm` … statt `install.wim`.
 6. **Booten:** Den PC per Boot-Menü (oft F12/F8/Esc) vom Stick im **UEFI-Modus** starten. Das
    Windows-Setup sollte erscheinen. Installieren musst du nicht, bis zur Sprachauswahl reicht.
@@ -59,14 +59,14 @@ Terminal als Administrator.
 - Eine beliebige andere Datei unter „Windows 11“ auswählen (z. B. ein Linux-ISO) → „Das ist kein
   Windows-Installationsmedium“.
 - Eine Windows-ISO, deren Hash nicht in der Liste steht (z. B. eine ältere Version oder eine
-  veränderte Datei) → „Diese Datei steht nicht in Microsofts Prüfsummenliste …“. „Forge!“ bleibt
+  veränderte Datei) → „Diese Datei steht nicht in Microsofts Prüfsummenliste …“. „Flash!“ bleibt
   gesperrt.
 
 ## 3. Eigenes Image
 
 1. Links ganz unten **„Eigenes Image“** wählen (oder Kategorie „Eigenes Image“).
 2. Eine Datei wählen, z. B. das Debian-ISO aus dem letzten Test
-   (`%LOCALAPPDATA%\io.github.xhellphoenix.bootforge\cache\images\`) oder ein Raspberry-Pi-Image
+   (`%LOCALAPPDATA%\io.github.xhellphoenix.sealflash\cache\images\`) oder ein Raspberry-Pi-Image
    (`.img.xz`).
 3. Die Prüfsumme von der Download-Seite des Herstellers einfügen (z. B. aus `SHA256SUMS`).
    Formate wie `sha256:ABC…` oder Großbuchstaben sind egal.

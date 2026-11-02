@@ -459,7 +459,7 @@
           ]
         },
         {
-          "description": "Der Nutzer lädt selbst herunter (z. B. Windows: Microsoft erlaubt keine automatisierten\nDownloads). BootForge öffnet die Seite im Browser; danach wählt man die Datei aus und\nBootForge prüft sie (siehe `checksum`).",
+          "description": "Der Nutzer lädt selbst herunter (z. B. Windows: Microsoft erlaubt keine automatisierten\nDownloads). SealFlash öffnet die Seite im Browser; danach wählt man die Datei aus und\nSealFlash prüft sie (siehe `checksum`).",
           "type": "object",
           "properties": {
             "download_page": {

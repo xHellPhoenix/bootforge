@@ -1,8 +1,8 @@
-use bootforge_core::acquire::AcquireError;
-use bootforge_core::download::DownloadError;
-use bootforge_core::flash::FlashError;
-use bootforge_core::http::FetchError;
-use bootforge_core::resolve::ResolveError;
+use sealflash_core::acquire::AcquireError;
+use sealflash_core::download::DownloadError;
+use sealflash_core::flash::FlashError;
+use sealflash_core::http::FetchError;
+use sealflash_core::resolve::ResolveError;
 use serde::Serialize;
 
 /// Fehler, wie sie an die GUI gehen.

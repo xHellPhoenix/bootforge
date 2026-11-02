@@ -93,7 +93,7 @@
       <button class="secondary" onclick={cancel}>{t("prepare.cancel")}</button>
     {:else}
       <button class="secondary" onclick={onclose}>{t("prepare.back")}</button>
-      <!-- Fortsetzen nur beim reinen Download. Erneutes Schreiben soll bewusst über „Forge!“ und
+      <!-- Fortsetzen nur beim reinen Download. Erneutes Schreiben soll bewusst über „Flash!“ und
            eine neue Bestätigung laufen. -->
       {#if job.kind === "download" && job.error && job.error.code !== "checksum_mismatch" && job.error.code !== "signature_invalid"}
         <button class="primary" onclick={() => run(job)}>{t("prepare.resume")}</button>
