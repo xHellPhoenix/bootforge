@@ -65,3 +65,62 @@ fn localized_text_falls_back_to_german() {
     let d = &cat.distros[0];
     assert_eq!(d.description.get("xx"), d.description.get("de"));
 }
+
+/// Die Ausnahme „ohne Prüfsumme“ darf nicht durch die Hintertür in andere Einträge gelangen.
+#[test]
+fn origin_only_is_tightly_restricted() {
+    use serde_json::{Value, json};
+    let base: Value = serde_json::from_str(catalog::BUNDLED_CATALOG_JSON).unwrap();
+    // Variante per ID finden und verändern.
+    let edit = |id: &str, f: &dyn Fn(&mut Value)| {
+        let mut c = base.clone();
+        for d in c["distros"].as_array_mut().unwrap() {
+            for v in d["variants"].as_array_mut().unwrap() {
+                if v["id"] == id {
+                    f(v);
+                }
+            }
+        }
+        match catalog::parse(&c.to_string()) {
+            Err(catalog::CatalogError::Invalid(i)) => i
+                .into_iter()
+                .map(|i| i.message)
+                .collect::<Vec<_>>()
+                .join(" | "),
+            other => panic!("erwartet Fehler, war {:?}", other.map(|_| ())),
+        }
+    };
+
+    // Platzhalter im Hostnamen
+    let e = edit("windows-server-2025-de", &|v| {
+        v["checksum"]["allowed_hosts"] = json!(["*.microsoft.com"])
+    });
+    assert!(e.contains("kein gültiger Hostname"), "{e}");
+    // Schema statt Hostname
+    let e = edit("windows-server-2025-de", &|v| {
+        v["checksum"]["allowed_hosts"] = json!(["https://download.microsoft.com"])
+    });
+    assert!(e.contains("kein gültiger Hostname"), "{e}");
+    // leere Liste
+    let e = edit("windows-server-2025-de", &|v| {
+        v["checksum"]["allowed_hosts"] = json!([])
+    });
+    assert!(e.contains("mindestens ein erlaubter Server"), "{e}");
+    // https_origin bei einer normalen Quelle (Windows 11: manual)
+    let e = edit(
+        "windows-11",
+        &|v| {
+            v["checksum"] = json!({"type": "https_origin", "allowed_hosts": ["www.microsoft.com"]})
+        },
+    );
+    assert!(e.contains("nur bei `direct`"), "{e}");
+    // direct mit einer echten Prüfsumme statt https_origin
+    let e =
+        edit(
+            "windows-server-2025-de",
+            &|v| {
+                v["checksum"] = json!({"type": "file", "url": "SHA256SUMS", "algorithm": "sha256"})
+            },
+        );
+    assert!(e.contains("`direct` braucht"), "{e}");
+}

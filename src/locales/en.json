@@ -183,5 +183,10 @@
   "confirm.windows_setup": "Windows setup",
   "forge.hint.windows_setup": "Please fix the entries under “Customise Windows setup” first.",
   "error.invalid_windows_setup": "The Windows settings are invalid.",
-  "error.file_unreadable": "The file cannot be read – was it moved or deleted, or is permission missing?"
+  "error.file_unreadable": "The file cannot be read – was it moved or deleted, or is permission missing?",
+  "distro.integrity.origin": "Origin only",
+  "resolve.origin_only": "Microsoft publishes no checksum for this. SealFlash downloads directly from Microsoft's download server (HTTPS) and aborts if the file came from anywhere else – but a replaced file on the server itself would not be detected.",
+  "prepare.assurance.origin": "No checksum available from the vendor – the file came via HTTPS directly from its official download server. Weaker than a checksum.",
+  "confirm.integrity": "Authenticity",
+  "confirm.origin_only": "Origin checked only (no vendor checksum)"
 }

@@ -128,6 +128,9 @@ impl From<AcquireError> for AppError {
             }
             AcquireError::Download(DownloadError::Io(_)) => AppError::Disk(detail),
             AcquireError::Download(DownloadError::NoSpace { .. }) => AppError::NoSpace(detail),
+            AcquireError::Download(DownloadError::UntrustedHost { .. }) => {
+                AppError::Insecure(detail)
+            }
             AcquireError::Download(_) => AppError::Network(detail),
         }
     }

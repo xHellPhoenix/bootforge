@@ -20,7 +20,7 @@ use std::sync::atomic::AtomicBool;
 use serde::Serialize;
 
 use crate::catalog::{HashAlgorithm, SignatureKind, SignedTarget};
-use crate::download::{DownloadError, Progress, RangeSource, download, hash_file};
+use crate::download::{DownloadError, Progress, RangeSource, download_pinned, hash_file};
 use crate::http::{FetchError, Fetcher};
 use crate::resolve::{ResolvedChecksum, ResolvedImage};
 use crate::verify::gpg::{self, GpgError, Signer};
@@ -71,6 +71,9 @@ pub enum Assurance {
     Checksum,
     /// Nur MD5 – schützt nur gegen Übertragungsfehler.
     Weak,
+    /// Keine Prüfsumme vom Hersteller: per HTTPS direkt vom offiziellen Server geladen.
+    /// Schützt vor Manipulation unterwegs, nicht vor einer ausgetauschten Datei auf dem Server.
+    Origin,
 }
 
 /// Ein vollständig geprüftes Image.
@@ -165,10 +168,18 @@ pub async fn acquire<S: Fetcher + RangeSource>(
         }
     };
 
+    // Hersteller ohne Prüfsumme: nur Herkunft prüfbar (siehe `Checksum::HttpsOrigin`).
+    let origin_hosts = match &img.checksum {
+        ResolvedChecksum::HttpsOrigin { allowed_hosts } => Some(allowed_hosts.clone()),
+        _ => None,
+    };
+
     // --- 1. erwartete Prüfsumme (+ Signatur der Prüfsummendatei) --------------------------------
-    on_event(AcquireEvent::Stage {
-        stage: Stage::Checksum,
-    });
+    if origin_hosts.is_none() {
+        on_event(AcquireEvent::Stage {
+            stage: Stage::Checksum,
+        });
+    }
     let mut signer = None;
     let mut certs = Vec::new();
     if let Some(sig) = &img.signature {
@@ -180,9 +191,10 @@ pub async fn acquire<S: Fetcher + RangeSource>(
         certs = gpg::pinned_certs(&keyring, &sig.fingerprints)?;
     }
 
-    let expected = match &img.checksum {
-        ResolvedChecksum::Value { value, .. } => value.clone(),
-        ResolvedChecksum::File { url, .. } => {
+    let expected: Option<String> = match &img.checksum {
+        ResolvedChecksum::HttpsOrigin { .. } => None,
+        ResolvedChecksum::Value { value, .. } => Some(value.clone()),
+        ResolvedChecksum::File { url, .. } => Some({
             // Bytes, nicht Text: die Signatur gilt für die exakten Bytes der Datei.
             let sums = src.get_bytes(url).await?;
             let signed_text = match &img.signature {
@@ -224,8 +236,11 @@ pub async fn acquire<S: Fetcher + RangeSource>(
                     url: url.to_string(),
                 }
             })?
-        }
+        }),
     };
+    // Ohne Hersteller-Prüfsumme halten wir den beim Download berechneten Hash neben der Datei
+    // fest. Beim nächsten Mal fällt so wenigstens eine beschädigte Datei im Cache auf.
+    let sidecar = dest.with_file_name(format!("{filename}.sha256"));
 
     // Signatur über das Image: Signaturdatei schon jetzt holen – fehlt sie, gar nicht erst laden.
     let image_sig = match &img.signature {
@@ -257,7 +272,14 @@ pub async fn acquire<S: Fetcher + RangeSource>(
         })
         .await?;
         let hash = h.finish_hex();
-        if hashes_equal(&hash, &expected) {
+        let reference = match &expected {
+            Some(e) => Some(e.clone()),
+            None => tokio::fs::read_to_string(&sidecar)
+                .await
+                .ok()
+                .map(|s| s.trim().to_owned()),
+        };
+        if reference.is_some_and(|r| hashes_equal(&hash, &r)) {
             from_cache = true;
             actual = Some(hash);
             size = n;
@@ -272,27 +294,46 @@ pub async fn acquire<S: Fetcher + RangeSource>(
         on_event(AcquireEvent::Stage {
             stage: Stage::Download,
         });
-        let d = download(src, &img.url, &dest, algorithm, cancel, |p: Progress| {
-            on_event(AcquireEvent::Progress {
-                stage: Stage::Download,
-                done: p.done,
-                total: p.total.or(img.size),
-                bytes_per_sec: p.bytes_per_sec,
-            })
-        })
+        let d = download_pinned(
+            src,
+            &img.url,
+            &dest,
+            algorithm,
+            origin_hosts.as_deref(),
+            cancel,
+            |p: Progress| {
+                on_event(AcquireEvent::Progress {
+                    stage: Stage::Download,
+                    done: p.done,
+                    total: p.total.or(img.size),
+                    bytes_per_sec: p.bytes_per_sec,
+                })
+            },
+        )
         .await?;
         actual = Some(d.hash);
         size = d.size;
     }
 
     // --- 4. Vergleich ----------------------------------------------------------------------------
-    on_event(AcquireEvent::Stage {
-        stage: Stage::Verify,
-    });
     let actual = actual.expect("gesetzt in 2. oder 3.");
-    if !hashes_equal(&actual, &expected) {
-        let _ = tokio::fs::remove_file(&dest).await;
-        return Err(AcquireError::ChecksumMismatch { expected, actual });
+    match &expected {
+        Some(expected) => {
+            on_event(AcquireEvent::Stage {
+                stage: Stage::Verify,
+            });
+            if !hashes_equal(&actual, expected) {
+                let _ = tokio::fs::remove_file(&dest).await;
+                return Err(AcquireError::ChecksumMismatch {
+                    expected: expected.clone(),
+                    actual,
+                });
+            }
+        }
+        // Nichts zu vergleichen – Hash nur festhalten (Fehler hier sind nicht schlimm).
+        None => {
+            let _ = tokio::fs::write(&sidecar, format!("{actual}\n")).await;
+        }
     }
 
     // --- 5. Signatur über das ganze Image -------------------------------------------------------
@@ -331,6 +372,7 @@ pub async fn acquire<S: Fetcher + RangeSource>(
     }
 
     let assurance = match (&signer, algorithm) {
+        _ if origin_hosts.is_some() => Assurance::Origin,
         (Some(_), _) => Assurance::Signed,
         (None, HashAlgorithm::Md5) => Assurance::Weak,
         (None, _) => Assurance::Checksum,

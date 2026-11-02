@@ -9,7 +9,7 @@ und schreibt sie auf den Stick.
 
 [![CI](https://github.com/xHellPhoenix/sealflash/actions/workflows/ci.yml/badge.svg)](https://github.com/xHellPhoenix/sealflash/actions/workflows/ci.yml)
 
-> **Status:** Version 0.3 (alle 7 Phasen umgesetzt, dazu Windows-Einrichtung per Antwortdatei). SealFlash ermittelt die neueste Version, lädt sie herunter und prüft
+> **Status:** Version 0.4 (alle 7 Phasen umgesetzt, dazu Windows-Einrichtung per Antwortdatei und Windows Server als Testversion). SealFlash ermittelt die neueste Version, lädt sie herunter und prüft
 > sie (SHA-256/512 und GPG-Signatur des Herstellers). Dann schreibt es sie auf einen USB-Stick und
 > prüft den Stick durch Zurücklesen. **Windows 10/11:** Die ISO lädt man selbst bei Microsoft,
 > SealFlash prüft sie gegen Microsofts veröffentlichte Prüfsummen und baut daraus einen

@@ -76,7 +76,8 @@ pub fn cache_info(dir: &Path) -> io::Result<CacheInfo> {
                 let name = e.file_name().to_string_lossy().into_owned();
                 if name.ends_with(".part") {
                     info.partial += 1;
-                } else if !name.ends_with(".part.json") {
+                } else if !name.ends_with(".part.json") && !name.ends_with(".sha256") {
+                    // `.sha256`: festgehaltener Hash eines Downloads ohne Hersteller-Prüfsumme.
                     info.images += 1;
                 }
             }

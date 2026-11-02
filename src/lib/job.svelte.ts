@@ -54,6 +54,10 @@ function flashStages(mode: FlashMode): AnyStage[] {
 }
 
 function planned(img: ResolvedImage, forge: boolean): AnyStage[] {
+  // Ohne Hersteller-Prüfsumme gibt es nichts zu laden oder zu vergleichen – nur den Download.
+  if (img.checksum.type === "https_origin") {
+    return forge ? ["download", ...flashStages(img.flash_mode)] : ["download"];
+  }
   const s: AnyStage[] = ["checksum"];
   if (img.signature?.signs === "checksum_file") s.push("signature");
   s.push("download", "verify");

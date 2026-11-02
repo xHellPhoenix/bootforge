@@ -50,6 +50,10 @@
   );
   const localImage = $derived(localKey ? (localImages[localKey] ?? null) : null);
   const imageReady = $derived(localKey ? !!localImage : !!resolvedImage);
+  /** Wird ein Windows-Installationsstick erstellt (eigene Datei oder aus dem Katalog)? */
+  const windowsTarget = $derived(
+    localKey ? localImage?.info.flash_mode === "windows" : resolvedImage?.flash_mode === "windows",
+  );
   const imageSize = $derived(localImage?.acquired.size ?? resolvedImage?.size ?? null);
 
   // Abgeleiteter Zustand: Schritt 1 ist erst erledigt, wenn das Image feststeht (neueste Version
@@ -117,7 +121,10 @@
       });
     } else {
       if (!resolvedImage) return;
-      job = createJob(title, resolvedImage, target);
+      job = createJob(title, resolvedImage, {
+        ...target,
+        windowsSetup: resolvedImage.flash_mode === "windows" ? windowsSetupRequest() : null,
+      });
     }
     run(job);
   }
@@ -216,7 +223,8 @@
       <ConfirmDialog
         drive={selectedDrive}
         imageLabel={confirmFor}
-        windowsSetup={localImage?.info.flash_mode === "windows" ? windowsSetupRequest() : null}
+        windowsSetup={windowsTarget ? windowsSetupRequest() : null}
+        originOnly={!localKey && resolvedImage?.checksum.type === "https_origin"}
         onconfirm={startForge}
         oncancel={() => (confirmFor = null)}
       />
@@ -233,6 +241,7 @@
       resolve={selectedVariant ? resolved[selectedVariant.id] : undefined}
       own={ownSelected}
       local={localImage}
+      {windowsTarget}
       localMode={!!localKey}
       origin={response.origin}
       updated={response.catalog.updated}
