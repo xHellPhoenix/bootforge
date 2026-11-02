@@ -1,0 +1,17 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "build": {
+    "beforeBuildCommand": "npm run build && powershell -NoProfile -ExecutionPolicy Bypass -File packaging/windows/fetch-wimlib.ps1"
+  },
+  "bundle": {
+    "resources": {
+      "../packaging/windows/wimlib/wimlib-imagex.exe": "wimlib-imagex.exe",
+      "../packaging/windows/wimlib/libwim-15.dll": "libwim-15.dll",
+      "../packaging/windows/wimlib/COPYING.txt": "licenses/wimlib/COPYING.txt",
+      "../packaging/windows/wimlib/COPYING.GPLv3.txt": "licenses/wimlib/COPYING.GPLv3.txt",
+      "../packaging/windows/wimlib/COPYING.LGPL.txt": "licenses/wimlib/COPYING.LGPL.txt",
+      "../packaging/windows/wimlib/COPYING.libdivsufsort-lite.txt": "licenses/wimlib/COPYING.libdivsufsort-lite.txt",
+      "../THIRD-PARTY.md": "licenses/THIRD-PARTY.md"
+    }
+  }
+}

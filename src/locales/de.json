@@ -151,5 +151,14 @@
   "error.not_windows_media": "Das ist kein Windows-Installationsmedium. Für andere Images gibt es „Eigenes Image“.",
   "error.not_verified": "Die Datei wurde noch nicht geprüft.",
   "error.wimlib_missing": "Für Windows-Images über 4 GB fehlt das Programm wimlib-imagex (Linux: Paket „wimtools“ installieren).",
-  "error.not_on_vendor_list": "Diese Datei steht nicht in Microsofts Prüfsummenliste. Sie ist beschädigt, verändert oder keine Original-ISO – lade sie erneut von der Download-Seite."
+  "error.not_on_vendor_list": "Diese Datei steht nicht in Microsofts Prüfsummenliste. Sie ist beschädigt, verändert oder keine Original-ISO – lade sie erneut von der Download-Seite.",
+  "cache.label": "Cache",
+  "cache.title": "Heruntergeladene Images",
+  "cache.text": "{n} Image(s), zusammen {size}. Sie bleiben gespeichert, damit ein zweiter Stick ohne neuen Download geht.",
+  "cache.partial": "Dazu {n} angefangene(r) Download(s), der beim nächsten Mal fortgesetzt würde.",
+  "cache.free": "Frei auf dem Laufwerk: {size}",
+  "cache.clear": "Leeren …",
+  "cache.confirm": "Ja, alles löschen",
+  "error.no_space": "Nicht genug Speicherplatz für den Download. Leere den Cache (unten rechts) oder schaffe Platz auf dem Laufwerk.",
+  "catalog.fallback.incompatible": "Der Online-Katalog passt nicht zu dieser BootForge-Version – es wird die gespeicherte bzw. eingebaute Liste verwendet. Bitte BootForge aktualisieren."
 }

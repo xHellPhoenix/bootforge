@@ -58,6 +58,8 @@ export interface CatalogResponse {
   warnings: CatalogIssue[];
   /** Warum nicht der Online-Katalog genutzt wird. */
   fallback_reason: string | null;
+  /** Online erreichbar, aber für eine andere App-Version → App aktualisieren. */
+  remote_rejected: boolean;
 }
 
 export type HashAlgorithm = "sha256" | "sha512" | "md5";
@@ -208,3 +210,13 @@ export interface LocalImage {
 
 /** Woher „Forge!“ das Image nimmt. */
 export type ForgeSource = { type: "catalog"; variant_id: string } | { type: "local"; path: string };
+
+// --- Phase 7 ------------------------------------------------------------------------------------
+
+/** Rust: `disk::CacheInfo`. */
+export interface CacheInfo {
+  bytes: number;
+  images: number;
+  partial: number;
+  available: number | null;
+}
