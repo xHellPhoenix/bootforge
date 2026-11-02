@@ -3,6 +3,7 @@
   import { formatBytes } from "../lib/format";
   import { i18n } from "../lib/i18n.svelte";
   import CacheButton from "./CacheButton.svelte";
+  import { winSetup } from "../lib/windowsSetup.svelte";
   import type { CatalogResponse, Distro, Drive, LocalImage, ResolveState, Variant } from "../lib/types";
 
   let {
@@ -51,7 +52,9 @@
     return prefix + name + version;
   });
   const ready = $derived(localMode ? !!local : resolve?.status === "ok");
-  const canForge = $derived(ready && !!drive && driveFits && !busy);
+  // Windows-Einstellungen ungültig (z. B. Benutzername mit „?“) → erst korrigieren.
+  const winInvalid = $derived(local?.info.flash_mode === "windows" && winSetup.enabled && !!winSetup.error);
+  const canForge = $derived(ready && !!drive && driveFits && !busy && !winInvalid);
   const hint = $derived(
     !ready
       ? localMode

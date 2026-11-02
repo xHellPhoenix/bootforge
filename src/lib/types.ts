@@ -220,3 +220,14 @@ export interface CacheInfo {
   partial: number;
   available: number | null;
 }
+
+// --- Windows-Einrichtung (Antwortdatei) -------------------------------------------------------
+
+/** Rust: `flash::unattend::WindowsSetup`. Leere Texte = nicht festgelegt. */
+export interface WindowsSetup {
+  local_account: string | null;
+  computer_name: string | null;
+  locale: string | null;
+  skip_privacy: boolean;
+  bypass_requirements: boolean;
+}

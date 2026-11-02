@@ -1,4 +1,4 @@
-//! „Forge!“: Image beschaffen und auf den Stick schreiben.
+//! „Flash!“: Image beschaffen und auf den Stick schreiben.
 //!
 //! - Windows: Die App läuft (im Release) als Administrator und schreibt selbst.
 //! - Linux: Die App läuft als normaler Nutzer und startet den Root-Helper über pkexec.

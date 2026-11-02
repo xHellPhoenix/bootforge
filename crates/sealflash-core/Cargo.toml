@@ -53,6 +53,8 @@ test-util = []
 sealflash-core = { path = ".", features = ["test-util"] }
 url.workspace = true
 fatfs.workspace = true
+# Nur Tests: prüfen, ob die erzeugte Windows-Antwortdatei wohlgeformtes XML ist.
+quick-xml = "0.38"
 
 [target.'cfg(unix)'.dev-dependencies]
 libc.workspace = true

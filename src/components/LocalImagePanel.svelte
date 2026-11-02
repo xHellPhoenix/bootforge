@@ -10,6 +10,7 @@
   import { formatBytes } from "../lib/format";
   import { i18n, t } from "../lib/i18n.svelte";
   import type { AcquireEvent, AppError, LocalImage, Variant } from "../lib/types";
+  import WindowsSetupPanel from "./WindowsSetupPanel.svelte";
 
   let {
     variant,
@@ -156,6 +157,9 @@
       {#if a.assurance === "weak"}<p class="warn">⚠ {t("prepare.assurance.weak")}</p>{/if}
       {#if local.info.boot_record === false && local.info.flash_mode === "raw"}
         <p class="warn">⚠ {t("local.no_boot_record")}</p>
+      {/if}
+      {#if local.info.flash_mode === "windows"}
+        <WindowsSetupPanel />
       {/if}
     </div>
   {/if}

@@ -9,7 +9,7 @@ und schreibt sie auf den Stick.
 
 [![CI](https://github.com/xHellPhoenix/sealflash/actions/workflows/ci.yml/badge.svg)](https://github.com/xHellPhoenix/sealflash/actions/workflows/ci.yml)
 
-> **Status:** Version 0.2 (alle 7 Phasen umgesetzt). SealFlash ermittelt die neueste Version, lädt sie herunter und prüft
+> **Status:** Version 0.3 (alle 7 Phasen umgesetzt, dazu Windows-Einrichtung per Antwortdatei). SealFlash ermittelt die neueste Version, lädt sie herunter und prüft
 > sie (SHA-256/512 und GPG-Signatur des Herstellers). Dann schreibt es sie auf einen USB-Stick und
 > prüft den Stick durch Zurücklesen. **Windows 10/11:** Die ISO lädt man selbst bei Microsoft,
 > SealFlash prüft sie gegen Microsofts veröffentlichte Prüfsummen und baut daraus einen
@@ -23,6 +23,13 @@ und schreibt sie auf den Stick.
 | Windows 11 | Eigenes Image | Cache |
 |---|---|---|
 | ![](docs/screenshots/phase6-windows.png) | ![](docs/screenshots/phase6-own.png) | ![](docs/screenshots/phase7-cache.png) |
+
+**Windows-Einrichtung vorab (ab 0.3):** lokales Konto statt Microsoft-Konto, Computername,
+Region/Tastatur, Datenschutz-Fragen überspringen, optional ohne TPM/Secure-Boot-Prüfung. SealFlash legt
+dafür eine Antwortdatei auf den Stick – ohne Passwort und ohne automatisches Löschen der Festplatte
+([E52](docs/ARCHITEKTUR.md)).
+
+![Windows-Einrichtung](docs/screenshots/v03-windows-setup.png)
 
 ## Installieren
 

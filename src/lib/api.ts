@@ -11,6 +11,7 @@ import type {
   ForgeResult,
   ForgeSource,
   LocalImage,
+  WindowsSetup,
   ResolvedImage,
 } from "./types";
 
@@ -31,12 +32,18 @@ export const api = {
     drive: Drive,
     showExternalHdds: boolean,
     confirmName: string,
+    windowsSetup: WindowsSetup | null,
     onEvent: (e: ForgeEvent) => void,
   ) => {
     const channel = new Channel<ForgeEvent>();
     channel.onmessage = onEvent;
-    return invoke<ForgeResult>("forge", { source, drive, showExternalHdds, confirmName, onEvent: channel });
+    return invoke<ForgeResult>("forge", {
+      request: { source, drive, showExternalHdds, confirmName, windowsSetup },
+      onEvent: channel,
+    });
   },
+  /** `null` = Einstellungen in Ordnung, sonst Fehlermeldung. */
+  validateWindowsSetup: (setup: WindowsSetup) => invoke<string | null>("validate_windows_setup", { setup }),
   /** Datei-Dialog (läuft im Backend). `null` = abgebrochen. */
   pickImage: () => invoke<string | null>("pick_image"),
   /** Öffnet die Download-Seite aus dem Katalog im Browser. */

@@ -17,6 +17,7 @@ import type {
   ResolvedImage,
   Signer,
   Stage,
+  WindowsSetup,
 } from "./types";
 
 export type StageStatus = "pending" | "active" | "done" | "skipped" | "failed";
@@ -26,6 +27,8 @@ export interface ForgeTarget {
   drive: Drive;
   showExternalHdds: boolean;
   confirmName: string;
+  /** Nur Windows-Modus: Antwortdatei-Einstellungen. */
+  windowsSetup?: WindowsSetup | null;
 }
 
 export interface Job {
@@ -125,7 +128,14 @@ export async function run(job: Job) {
   try {
     if (job.kind === "forge" && job.target) {
       const t = job.target;
-      const r = await api.forge(job.source, t.drive, t.showExternalHdds, t.confirmName, (e) => handle(job, e.event));
+      const r = await api.forge(
+        job.source,
+        t.drive,
+        t.showExternalHdds,
+        t.confirmName,
+        t.windowsSetup ?? null,
+        (e) => handle(job, e.event),
+      );
       job.result = r.acquired;
       job.flashed = r.report;
     } else if (job.source.type === "catalog") {

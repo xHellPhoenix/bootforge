@@ -29,7 +29,7 @@ pub struct AppState {
     pub busy: AtomicBool,
     /// Abbruch-Signal für den laufenden Download. `Arc`, weil auch der Download-Task es hält.
     pub cancel: Arc<AtomicBool>,
-    /// Selbst mitgebrachte, geprüfte Dateien (Pfad → Ergebnis). Nur diese nimmt „Forge!“ an.
+    /// Selbst mitgebrachte, geprüfte Dateien (Pfad → Ergebnis). Nur diese nimmt „Flash!“ an.
     pub local: Mutex<HashMap<PathBuf, LocalImage>>,
 }
 

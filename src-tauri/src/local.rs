@@ -84,7 +84,7 @@ pub fn open_download_page(
 ///   dem Katalog), und die Datei muss ein Windows-Installationsmedium sein.
 /// - sonst („Eigenes Image“): `hash` ist Pflicht – vom Hersteller kopiert.
 ///
-/// Das Ergebnis merkt sich das Backend; „Forge!“ akzeptiert nur so geprüfte Dateien
+/// Das Ergebnis merkt sich das Backend; „Flash!“ akzeptiert nur so geprüfte Dateien
 /// (und prüft beim Schreiben ohnehin noch einmal).
 #[tauri::command]
 pub async fn verify_local(
@@ -120,7 +120,7 @@ pub async fn verify_local(
     let info = tauri::async_runtime::spawn_blocking(move || local::inspect(&p))
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?
-        .map_err(|e| AppError::Disk(format!("{}: {e}", path.display())))?;
+        .map_err(|e| AppError::FileUnreadable(format!("{}: {e}", path.display())))?;
     if variant_id.is_some() && info.flash_mode != FlashMode::Windows {
         return Err(AppError::NotWindowsMedia);
     }

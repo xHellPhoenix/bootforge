@@ -6,8 +6,10 @@ use std::time::Instant;
 use std::sync::atomic::Ordering;
 
 use sealflash_core::acquire::{self, AcquireEvent, Acquired};
+use sealflash_core::catalog::FlashMode;
 use sealflash_core::catalog::load::{self, DEFAULT_CATALOG_URL, Loaded};
 use sealflash_core::device::{self, Drive, ScanOptions};
+use sealflash_core::flash::unattend::WindowsSetup;
 use sealflash_core::flash::{FlashJob, FlashReport, ForgeRequest};
 use sealflash_core::resolve::{self, ResolvedImage};
 use tauri::ipc::Channel;
@@ -123,14 +125,14 @@ pub fn cancel_prepare(state: State<'_, AppState>) {
     state.cancel.store(true, Ordering::SeqCst);
 }
 
-/// Ergebnis von „Forge!“.
+/// Ergebnis von „Flash!“.
 #[derive(serde::Serialize)]
 pub struct ForgeResult {
     pub acquired: Acquired,
     pub report: FlashReport,
 }
 
-/// Woher das Image für „Forge!“ kommt.
+/// Woher das Image für „Flash!“ kommt.
 #[derive(Debug, serde::Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ForgeSource {
@@ -140,23 +142,47 @@ pub enum ForgeSource {
     Local { path: PathBuf },
 }
 
-/// „Forge!“: Image beschaffen + prüfen (bzw. die geprüfte eigene Datei nehmen), dann auf den
+/// Was die GUI für „Flash!“ schickt.
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ForgeArgs {
+    source: ForgeSource,
+    drive: Drive,
+    show_external_hdds: bool,
+    /// Vom Nutzer im Bestätigungsdialog eingetippter Laufwerksname.
+    confirm_name: String,
+    /// Nur Windows-Modus: Antwortdatei-Einstellungen.
+    #[serde(default)]
+    windows_setup: Option<WindowsSetup>,
+}
+
+/// „Flash!“: Image beschaffen + prüfen (bzw. die geprüfte eigene Datei nehmen), dann auf den
 /// Stick schreiben.
 ///
 /// `confirm_name` ist das, was der Nutzer im Bestätigungsdialog eingetippt hat. Es wird HIER
 /// noch einmal geprüft – ein Fehler in der GUI darf die Bestätigung nicht aushebeln.
 #[tauri::command]
 pub async fn forge(
-    source: ForgeSource,
-    drive: Drive,
-    show_external_hdds: bool,
-    confirm_name: String,
+    request: ForgeArgs,
     on_event: Channel<ForgeEvent>,
     app: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<ForgeResult, AppError> {
+    let ForgeArgs {
+        source,
+        drive,
+        show_external_hdds,
+        confirm_name,
+        windows_setup,
+    } = request;
     if !confirm_name.trim().eq_ignore_ascii_case(drive.name.trim()) {
         return Err(AppError::ConfirmMismatch);
+    }
+    // Eingaben für die Windows-Antwortdatei gleich hier prüfen (verständlicher Fehler, bevor
+    // etwas heruntergeladen oder geschrieben wird). Der Kern prüft beim Schreiben noch einmal.
+    let windows_setup = windows_setup.filter(|w| !w.is_empty());
+    if let Some(ws) = &windows_setup {
+        ws.validate().map_err(AppError::InvalidWindowsSetup)?;
     }
     let _busy = BusyGuard::acquire(&state)?;
     state.cancel.store(false, Ordering::SeqCst);
@@ -197,9 +223,17 @@ pub async fn forge(
             expected_hash: acquired.hash.clone(),
         },
         mode,
+        windows_setup: windows_setup.filter(|_| mode == FlashMode::Windows),
     };
     let report = crate::forge::flash(req, state.cancel.clone(), on_event).await?;
     Ok(ForgeResult { acquired, report })
+}
+
+/// Prüft die Windows-Einstellungen schon während der Eingabe (gleiche Regeln wie beim Schreiben).
+/// `None` = alles in Ordnung, sonst die Fehlermeldung.
+#[tauri::command]
+pub fn validate_windows_setup(setup: WindowsSetup) -> Option<String> {
+    setup.validate().err()
 }
 
 fn images_dir(app: &AppHandle) -> Result<std::path::PathBuf, AppError> {
@@ -267,5 +301,39 @@ pub fn app_info() -> AppInfo {
         version: env!("CARGO_PKG_VERSION"),
         os: std::env::consts::OS,
         arch: std::env::consts::ARCH,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Genau die Form, die `src/lib/api.ts` schickt (camelCase außen, snake_case in den Daten).
+    #[test]
+    fn forge_request_from_gui_json() {
+        let json = r#"{
+            "source": { "type": "local", "path": "/home/a/Win11.iso" },
+            "drive": { "id": "/dev/sdb", "name": "Stick", "serial": null, "size": 8000000000,
+                       "bus": "usb", "removable": true, "mounts": [], "rejection": null },
+            "showExternalHdds": false,
+            "confirmName": "Stick",
+            "windowsSetup": { "local_account": "Alex", "computer_name": null, "locale": "de-DE",
+                              "skip_privacy": true, "bypass_requirements": false }
+        }"#;
+        let a: ForgeArgs = serde_json::from_str(json).unwrap();
+        assert!(matches!(a.source, ForgeSource::Local { .. }));
+        assert_eq!(a.confirm_name, "Stick");
+        let ws = a.windows_setup.unwrap();
+        assert_eq!(ws.local_account.as_deref(), Some("Alex"));
+        assert!(ws.validate().is_ok());
+
+        // Linux-Image: kein windowsSetup → null
+        let json = json.replace(
+            r#""windowsSetup": { "local_account": "Alex", "computer_name": null, "locale": "de-DE",
+                              "skip_privacy": true, "bypass_requirements": false }"#,
+            r#""windowsSetup": null"#,
+        );
+        let a: ForgeArgs = serde_json::from_str(&json).unwrap();
+        assert!(a.windows_setup.is_none());
     }
 }

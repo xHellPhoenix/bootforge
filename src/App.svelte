@@ -11,6 +11,7 @@
   import UsbDialog from "./components/UsbDialog.svelte";
   import ConfirmDialog from "./components/ConfirmDialog.svelte";
   import { createJob, createLocalJob, run, type Job } from "./lib/job.svelte";
+  import { toRequest as windowsSetupRequest } from "./lib/windowsSetup.svelte";
 
   let response = $state<CatalogResponse | null>(null);
   let version = $state("");
@@ -110,7 +111,10 @@
     };
     if (localKey) {
       if (!localImage) return;
-      job = createLocalJob(title, $state.snapshot(localImage), target);
+      job = createLocalJob(title, $state.snapshot(localImage), {
+        ...target,
+        windowsSetup: localImage.info.flash_mode === "windows" ? windowsSetupRequest() : null,
+      });
     } else {
       if (!resolvedImage) return;
       job = createJob(title, resolvedImage, target);
@@ -212,6 +216,7 @@
       <ConfirmDialog
         drive={selectedDrive}
         imageLabel={confirmFor}
+        windowsSetup={localImage?.info.flash_mode === "windows" ? windowsSetupRequest() : null}
         onconfirm={startForge}
         oncancel={() => (confirmFor = null)}
       />

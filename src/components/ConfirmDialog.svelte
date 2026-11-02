@@ -1,16 +1,19 @@
 <script lang="ts">
   import { formatBytes } from "../lib/format";
   import { i18n, t } from "../lib/i18n.svelte";
-  import type { Drive } from "../lib/types";
+  import type { Drive, WindowsSetup } from "../lib/types";
 
   let {
     drive,
     imageLabel,
+    windowsSetup = null,
     onconfirm,
     oncancel,
   }: {
     drive: Drive;
     imageLabel: string;
+    /** Wird eine Windows-Antwortdatei mitgeschrieben? Dann zur Kontrolle anzeigen. */
+    windowsSetup?: WindowsSetup | null;
     onconfirm: (typedName: string) => void;
     oncancel: () => void;
   } = $props();
@@ -44,6 +47,21 @@
       {/if}
       <dt>{t("confirm.image")}</dt>
       <dd>{imageLabel}</dd>
+      {#if windowsSetup}
+        {@const w = windowsSetup}
+        <dt>{t("confirm.windows_setup")}</dt>
+        <dd>
+          {[
+            w.local_account ? t("ws.sum.account", { name: w.local_account }) : "",
+            w.computer_name ? t("ws.sum.computer", { name: w.computer_name }) : "",
+            w.locale ? t("ws.sum.locale", { locale: w.locale }) : "",
+            w.skip_privacy ? t("ws.sum.privacy") : "",
+            w.bypass_requirements ? t("ws.sum.bypass") : "",
+          ]
+            .filter(Boolean)
+            .join(" · ")}
+        </dd>
+      {/if}
     </dl>
 
     <label>

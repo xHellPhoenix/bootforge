@@ -51,6 +51,10 @@ pub enum AppError {
     NotWindowsMedia,
     #[error("Prüfsumme steht nicht in der Liste des Herstellers: {0}")]
     NotOnVendorList(String),
+    #[error("Windows-Einstellungen ungültig: {0}")]
+    InvalidWindowsSetup(String),
+    #[error("Datei nicht lesbar: {0}")]
+    FileUnreadable(String),
     #[error("Datei wurde noch nicht geprüft")]
     NotVerified,
     #[error("Programm wimlib-imagex fehlt")]

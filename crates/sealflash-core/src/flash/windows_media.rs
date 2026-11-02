@@ -40,6 +40,9 @@ pub struct MediaOptions {
     pub wimlib: Option<PathBuf>,
     /// Volume-Name des Sticks (max. 11 Zeichen).
     pub label: String,
+    /// Zusätzliche Dateien im Hauptverzeichnis, die nicht aus der ISO kommen (z. B.
+    /// `autounattend.xml`). Ersetzt eine gleichnamige Datei der ISO.
+    pub extra_files: Vec<(String, Vec<u8>)>,
 }
 
 impl MediaOptions {
@@ -50,6 +53,7 @@ impl MediaOptions {
             temp_dir,
             wimlib: find_wimlib(),
             label: "SEALFLASH".into(),
+            extra_files: Vec::new(),
         }
     }
 }
@@ -74,11 +78,27 @@ pub fn find_wimlib() -> Option<PathBuf> {
         .find(|p| p.is_file())
 }
 
+/// Woher eine Datei kommt: aus der eingebundenen ISO bzw. dem Arbeitsordner, oder aus dem Speicher.
+#[derive(Debug, Clone)]
+enum Src {
+    File(PathBuf),
+    Memory(std::sync::Arc<Vec<u8>>),
+}
+
+impl Src {
+    fn open(&self) -> io::Result<Box<dyn Read + '_>> {
+        Ok(match self {
+            Src::File(p) => Box::new(File::open(p)?),
+            Src::Memory(b) => Box::new(io::Cursor::new(b.as_slice())),
+        })
+    }
+}
+
 /// Eine zu kopierende Datei: Pfad im Ziel (mit `/`), Quelle, Größe.
 #[derive(Debug, Clone)]
 struct Item {
     dest: String,
-    src: PathBuf,
+    src: Src,
     size: u64,
 }
 
@@ -104,7 +124,7 @@ fn walk(root: &Path) -> io::Result<(Vec<String>, Vec<Item>)> {
             } else if meta.is_file() {
                 files.push(Item {
                     dest,
-                    src: e.path(),
+                    src: Src::File(e.path()),
                     size: meta.len(),
                 });
             }
@@ -131,9 +151,14 @@ fn split_wim(item: &Item, opts: &MediaOptions) -> Result<Vec<Item>, FlashError> 
     let out_dir = opts.temp_dir.join("sealflash-swm");
     let _ = std::fs::remove_dir_all(&out_dir);
     std::fs::create_dir_all(&out_dir).map_err(io_err)?;
+    let Src::File(wim) = &item.src else {
+        return Err(FlashError::Io(
+            "install.wim liegt nicht als Datei vor".into(),
+        ));
+    };
     let out = Command::new(wimlib)
         .arg("split")
-        .arg(&item.src)
+        .arg(wim)
         .arg(out_dir.join("install.swm"))
         .arg(opts.split_part_mib.to_string())
         .output()
@@ -238,6 +263,18 @@ pub fn write_windows_media<D: Device>(
         files.remove(i);
         files.extend(split_parts.iter().cloned());
     }
+    // Zusatzdateien (z. B. autounattend.xml) – ersetzen eine gleichnamige Datei der ISO.
+    for (name, data) in &opts.extra_files {
+        if name.contains('/') || name.contains('\\') || name.is_empty() {
+            return Err(FlashError::Io(format!("ungültiger Dateiname {name}")));
+        }
+        files.retain(|f| !f.dest.eq_ignore_ascii_case(name));
+        files.push(Item {
+            dest: name.clone(),
+            size: data.len() as u64,
+            src: Src::Memory(std::sync::Arc::new(data.clone())),
+        });
+    }
     if let Some(f) = files.iter().find(|f| f.size > FAT32_MAX_FILE) {
         return Err(FlashError::Unsupported(format!(
             "{} ist größer als 4 GB",
@@ -307,7 +344,7 @@ pub fn write_windows_media<D: Device>(
             let mut buf = vec![0u8; COPY_CHUNK];
             for (item, place) in files.iter().zip(&plan.files) {
                 check()?;
-                let mut src = File::open(&item.src).map_err(io_err)?;
+                let mut src = item.src.open().map_err(io_err)?;
                 part.seek(SeekFrom::Start(place.offset)).map_err(io_err)?;
                 let mut h = Sha256::new();
                 let mut copied = 0u64;

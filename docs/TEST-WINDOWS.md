@@ -78,3 +78,22 @@ Terminal als Administrator.
 - Der Windows-Stick startet nur im **UEFI-Modus** (seit Windows 11 Pflicht). Alte PCs mit reinem
   BIOS/CSM werden nicht unterstützt.
 - Sticks mit 4096-Byte-Sektoren (selten, manche USB-Festplatten) lehnt der Windows-Modus ab.
+
+## 4. Windows-Einrichtung anpassen (ab 0.3)
+
+1. Windows 11 wie oben wählen und die ISO prüfen lassen.
+2. Unter dem Prüfergebnis **„Windows-Einrichtung anpassen“** einschalten:
+   - „Lokales Konto …“ an, Benutzername z. B. `Test`
+   - Computername z. B. `SEALFLASH-TEST`
+   - Region `de-DE`, Datenschutz-Fragen überspringen
+   - Bei einem alten PC ohne TPM 2.0 zusätzlich „Prüfung … überspringen“
+3. Ungültige Eingaben ausprobieren: Benutzername `Administrator` oder `a?b`, Computername
+   `Büro-PC`. Darunter erscheint eine Fehlermeldung, „Flash!“ ist gesperrt.
+4. **Flash!** → Im Bestätigungsdialog steht die Zusammenfassung unter „Windows-Einrichtung“.
+5. Danach liegt auf dem Stick im Explorer die Datei `autounattend.xml`. Mit dem Editor öffnen: Sie
+   enthält kein Passwort und keinen Abschnitt `DiskConfiguration`.
+6. Vom Stick installieren. Erwartet:
+   - Die Sprachauswahl am Anfang ist schon ausgefüllt bzw. wird übersprungen.
+   - Die Festplatte wählst du **selbst** aus.
+   - Nach dem Neustart fragt Windows **nicht** nach Microsoft-Konto, Region oder Datenschutz.
+   - Anmeldung als `Test` ohne Passwort. Danach unter Einstellungen → Konten ein Passwort setzen.
