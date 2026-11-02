@@ -193,6 +193,17 @@ pub enum Source {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         filename_pattern: Option<String>,
     },
+    /// Fester, offizieller Download-Link des Herstellers (z. B. Windows Server Evaluation).
+    /// Für Hersteller, die keine Prüfsummen veröffentlichen: nur zusammen mit
+    /// `"checksum": {"type": "https_origin"}`.
+    Direct {
+        /// Download-Link (HTTPS). Weiterleitungen sind erlaubt, das Ziel wird geprüft.
+        url: String,
+        /// Angezeigte Version, z. B. „2025 (Testversion)“.
+        version: String,
+        /// Dateiname für den Download-Ordner.
+        filename: String,
+    },
 }
 
 /// Ein Schritt in einem Verzeichnislisting.
@@ -286,6 +297,14 @@ pub enum Checksum {
         url: String,
         /// Hash-Algorithmus.
         algorithm: HashAlgorithm,
+    },
+    /// **Keine** Prüfsumme vom Hersteller verfügbar. Abgesichert wird nur die Herkunft: Nach
+    /// allen Weiterleitungen muss die Datei per HTTPS von genau einem dieser Server kommen.
+    /// Schwächer als eine Prüfsumme (schützt nicht vor einer ausgetauschten Datei auf dem
+    /// Server selbst) und in der App deutlich gekennzeichnet. Nur mit `source.type = "direct"`.
+    HttpsOrigin {
+        /// Erlaubte Server (exakte Hostnamen, ohne Platzhalter).
+        allowed_hosts: Vec<String>,
     },
 }
 

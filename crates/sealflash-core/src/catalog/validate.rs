@@ -215,6 +215,25 @@ impl Validator {
                     self.err(&sloc, "`manual` unterstützt (noch) keine Signatur");
                 }
             }
+            Source::Direct {
+                url,
+                version,
+                filename,
+            } => {
+                self.https(&sloc, url);
+                if version.trim().is_empty() {
+                    self.err(&sloc, "`version` darf nicht leer sein");
+                }
+                if crate::acquire::safe_filename(filename).is_err() {
+                    self.err(&sloc, "`filename` ist kein zulässiger Dateiname");
+                }
+                if !matches!(v.checksum, Checksum::HttpsOrigin { .. }) {
+                    self.err(&sloc, "`direct` braucht `checksum.type` = `https_origin`");
+                }
+                if v.signature.is_some() {
+                    self.err(&sloc, "`direct` unterstützt keine Signatur");
+                }
+            }
         }
 
         if v.flash_mode == FlashMode::Windows && !v.compression.is_none() {
@@ -224,6 +243,35 @@ impl Validator {
         // Prüfsumme
         let cloc = format!("{loc}/checksum");
         let algorithm = match &v.checksum {
+            Checksum::HttpsOrigin { allowed_hosts } => {
+                if !matches!(v.source, Source::Direct { .. }) {
+                    self.err(&cloc, "`https_origin` geht nur bei `direct`-Quellen");
+                }
+                if allowed_hosts.is_empty() {
+                    self.err(
+                        &cloc,
+                        "mindestens ein erlaubter Server (`allowed_hosts`) nötig",
+                    );
+                }
+                for h in allowed_hosts {
+                    // Exakter Hostname: Kleinbuchstaben, Ziffern, Punkte, Bindestriche; mind. ein
+                    // Punkt; kein Schema, kein Pfad, keine Platzhalter.
+                    let ok = h.contains('.')
+                        && !h.starts_with('.')
+                        && !h.ends_with('.')
+                        && h.chars().all(|c| {
+                            c.is_ascii_lowercase() || c.is_ascii_digit() || c == '.' || c == '-'
+                        });
+                    if !ok {
+                        self.err(&cloc, format!("`{h}` ist kein gültiger Hostname"));
+                    }
+                }
+                self.warn(
+                    &cloc,
+                    "Keine Prüfsumme vom Hersteller – abgesichert ist nur die Herkunft (HTTPS)",
+                );
+                HashAlgorithm::Sha256
+            }
             Checksum::File {
                 url,
                 pattern,

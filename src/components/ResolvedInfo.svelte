@@ -2,6 +2,7 @@
   import { formatBytes, host } from "../lib/format";
   import { i18n, t } from "../lib/i18n.svelte";
   import type { ResolveState } from "../lib/types";
+  import WindowsSetupPanel from "./WindowsSetupPanel.svelte";
 
   let { state, onretry }: { state: ResolveState; onretry: () => void } = $props();
 </script>
@@ -22,6 +23,12 @@
       <dt>{t("resolve.source")}</dt>
       <dd class="mono">{host(img.url)}</dd>
     </dl>
+    {#if img.checksum.type === "https_origin"}
+      <p class="full warn">⚠ {t("resolve.origin_only")}</p>
+    {/if}
+    {#if img.flash_mode === "windows"}
+      <div class="full"><WindowsSetupPanel /></div>
+    {/if}
   {:else}
     <div class="error" class:hint={state.error.code === "not_supported_yet"}>
       <strong>{t(`error.${state.error.code}`)}</strong>
@@ -41,6 +48,7 @@
 <style>
   .info {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 10px;
     margin: -4px 0 0 28px;
@@ -49,6 +57,14 @@
     background: var(--bg-elev);
     border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
     font-size: 13px;
+  }
+  .full {
+    flex-basis: 100%;
+  }
+  .warn {
+    margin: 0;
+    font-size: 12.5px;
+    color: var(--warn);
   }
   dl {
     display: grid;

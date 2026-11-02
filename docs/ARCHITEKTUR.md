@@ -441,6 +441,28 @@ Dort sucht Windows-Setup sie automatisch. Die Datei wird wie alle anderen beim Z
   (`BypassNRO`, `HideOnlineAccountScreens`). Über Antwortdateien funktioniert es, weil Firmen das
   brauchen. Dass das in künftigen Versionen so bleibt, ist nicht garantiert.
 
+### E53 – Hersteller ohne Prüfsumme: „Nur Herkunft geprüft“ als bewusste, sichtbare Ausnahme
+Microsoft veröffentlicht für die Windows-Server-Testversionen keine Prüfsummen. Nach der
+Grundregel („nie ohne passende Prüfsumme flashen“) gäbe es diese Images in SealFlash gar nicht.
+Mit dem Projektinhaber wurde entschieden, eine **eng begrenzte, sichtbar gekennzeichnete
+Ausnahme** einzuführen:
+- Katalog: Quelle `direct` (fester offizieller Link) **nur zusammen mit** `checksum.type =
+  "https_origin"` und einer Liste **exakter** Server (`allowed_hosts`, keine Platzhalter). Andere
+  Kombinationen lehnt der Validator ab (Test `origin_only_is_tightly_restricted`).
+- Download: Nach allen Weiterleitungen (`go.microsoft.com` → `aka.ms` →
+  `software-static.download.prss.microsoft.com`) muss die Antwort per HTTPS von einem dieser Server
+  kommen. Geprüft wird **bevor ein Byte gespeichert wird**. Ein ähnlich klingender Name wie
+  `…microsoft.com.evil.example` zählt nicht.
+- Was das absichert: Die Datei kommt nachweislich vom Server des Herstellers und wurde unterwegs
+  nicht verändert (TLS). Was es **nicht** absichert: eine auf dem Server selbst ausgetauschte Datei.
+  Das kann nur eine veröffentlichte Prüfsumme oder Signatur.
+- Kennzeichnung: gelbes Abzeichen „Nur Herkunft geprüft“, Hinweistext bei der Version, Zeile
+  „Echtheit“ im Bestätigungsdialog, eigene Stufe `Assurance::Origin` im Ergebnis.
+- Cache: Der beim Download berechnete SHA-256 wird neben der Datei festgehalten (`.sha256`). Eine
+  später beschädigte Datei fällt so auf und wird neu geladen.
+- Nur für Downloads, die SealFlash selbst macht. Bei „Eigenes Image“ ist die Herkunft unbekannt,
+  dort bleibt die Prüfsumme Pflicht.
+
 ## Offene Punkte
 - **Kompatibilität des Online-Katalogs:** Wegen `deny_unknown_fields` lehnt eine ältere App einen
   Katalog mit neuen Feldern ab (z. B. `allow_v3`) und fällt auf ihren Cache zurück. Neue Felder darf

@@ -149,6 +149,28 @@
             "url",
             "algorithm"
           ]
+        },
+        {
+          "description": "**Keine** Prüfsumme vom Hersteller verfügbar. Abgesichert wird nur die Herkunft: Nach\nallen Weiterleitungen muss die Datei per HTTPS von genau einem dieser Server kommen.\nSchwächer als eine Prüfsumme (schützt nicht vor einer ausgetauschten Datei auf dem\nServer selbst) und in der App deutlich gekennzeichnet. Nur mit `source.type = \"direct\"`.",
+          "type": "object",
+          "properties": {
+            "allowed_hosts": {
+              "description": "Erlaubte Server (exakte Hostnamen, ohne Platzhalter).",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "type": {
+              "type": "string",
+              "const": "https_origin"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "allowed_hosts"
+          ]
         }
       ]
     },
@@ -482,6 +504,35 @@
           "required": [
             "type",
             "download_page"
+          ]
+        },
+        {
+          "description": "Fester, offizieller Download-Link des Herstellers (z. B. Windows Server Evaluation).\nFür Hersteller, die keine Prüfsummen veröffentlichen: nur zusammen mit\n`\"checksum\": {\"type\": \"https_origin\"}`.",
+          "type": "object",
+          "properties": {
+            "filename": {
+              "description": "Dateiname für den Download-Ordner.",
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "direct"
+            },
+            "url": {
+              "description": "Download-Link (HTTPS). Weiterleitungen sind erlaubt, das Ziel wird geprüft.",
+              "type": "string"
+            },
+            "version": {
+              "description": "Angezeigte Version, z. B. „2025 (Testversion)“.",
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "url",
+            "version",
+            "filename"
           ]
         }
       ]

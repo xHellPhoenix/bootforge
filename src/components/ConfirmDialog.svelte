@@ -7,6 +7,7 @@
     drive,
     imageLabel,
     windowsSetup = null,
+    originOnly = false,
     onconfirm,
     oncancel,
   }: {
@@ -14,6 +15,8 @@
     imageLabel: string;
     /** Wird eine Windows-Antwortdatei mitgeschrieben? Dann zur Kontrolle anzeigen. */
     windowsSetup?: WindowsSetup | null;
+    /** Katalog-Image ohne Hersteller-Prüfsumme (nur Herkunft geprüft) → deutlich sagen. */
+    originOnly?: boolean;
     onconfirm: (typedName: string) => void;
     oncancel: () => void;
   } = $props();
@@ -47,6 +50,10 @@
       {/if}
       <dt>{t("confirm.image")}</dt>
       <dd>{imageLabel}</dd>
+      {#if originOnly}
+        <dt>{t("confirm.integrity")}</dt>
+        <dd class="origin">⚠ {t("confirm.origin_only")}</dd>
+      {/if}
       {#if windowsSetup}
         {@const w = windowsSetup}
         <dt>{t("confirm.windows_setup")}</dt>
@@ -127,6 +134,9 @@
   dt {
     color: var(--text-faint);
     font-size: 12.5px;
+  }
+  dd.origin {
+    color: var(--warn);
   }
   dd {
     margin: 0;

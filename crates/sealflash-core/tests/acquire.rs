@@ -326,3 +326,142 @@ async fn file_not_listed_in_sums() {
         "{err}"
     );
 }
+
+// --- Hersteller ohne Prüfsumme: nur die Herkunft ist abgesichert ------------------------------
+
+const MS_HOST: &str = "software-static.download.prss.microsoft.com";
+
+fn origin_image() -> ResolvedImage {
+    ResolvedImage {
+        variant_id: "windows-server-2025".into(),
+        version: "2025 (Testversion)".into(),
+        build: None,
+        filename: "WindowsServer2025_Eval.iso".into(),
+        url: "https://go.microsoft.com/fwlink/?linkid=1".parse().unwrap(),
+        size: None,
+        checksum: ResolvedChecksum::HttpsOrigin {
+            allowed_hosts: vec![MS_HOST.into()],
+        },
+        signature: None,
+        compression: Compression::None,
+        flash_mode: FlashMode::Windows,
+    }
+}
+
+fn origin_net(final_host: &str) -> Net {
+    let mut image = FakeSource::new(image_data());
+    image.redirect_to = Some(
+        format!("https://{final_host}/x/Server_EVAL.iso")
+            .parse()
+            .unwrap(),
+    );
+    Net {
+        pages: FakeFetcher::new(),
+        image,
+    }
+}
+
+#[tokio::test]
+async fn origin_only_download_from_allowed_server() {
+    let dir = std::env::temp_dir().join(format!("sf-origin-ok-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    let mut stages = Vec::new();
+    let a = acquire(
+        &origin_net(MS_HOST),
+        &origin_image(),
+        &dir,
+        &AtomicBool::new(false),
+        |e| {
+            if let AcquireEvent::Stage { stage } = e {
+                stages.push(stage)
+            }
+        },
+    )
+    .await
+    .unwrap();
+    assert_eq!(a.assurance, Assurance::Origin);
+    assert_eq!(a.hash, sha256(&image_data()));
+    assert_eq!(
+        stages,
+        [Stage::Download],
+        "keine Prüfsummen-Schritte vortäuschen"
+    );
+    // Hash festgehalten …
+    let side = std::fs::read_to_string(dir.join("WindowsServer2025_Eval.iso.sha256")).unwrap();
+    assert_eq!(side.trim(), a.hash);
+
+    // … zweiter Lauf aus dem Cache …
+    let b = acquire(
+        &origin_net(MS_HOST),
+        &origin_image(),
+        &dir,
+        &AtomicBool::new(false),
+        |_| {},
+    )
+    .await
+    .unwrap();
+    assert!(b.from_cache);
+    assert_eq!(b.assurance, Assurance::Origin);
+
+    // … beschädigte Datei im Cache wird erkannt und neu geladen.
+    let mut f = std::fs::OpenOptions::new()
+        .write(true)
+        .open(dir.join("WindowsServer2025_Eval.iso"))
+        .unwrap();
+    f.write_all(b"kaputt").unwrap();
+    drop(f);
+    let c = acquire(
+        &origin_net(MS_HOST),
+        &origin_image(),
+        &dir,
+        &AtomicBool::new(false),
+        |_| {},
+    )
+    .await
+    .unwrap();
+    assert!(
+        !c.from_cache,
+        "beschädigte Datei darf nicht verwendet werden"
+    );
+    assert_eq!(c.hash, sha256(&image_data()));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[tokio::test]
+async fn origin_only_refuses_foreign_server() {
+    let dir = std::env::temp_dir().join(format!("sf-origin-bad-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    // Weiterleitung auf einen fremden Server – auch wenn der Name ähnlich aussieht.
+    for host in [
+        "evil.example",
+        "software-static.download.prss.microsoft.com.evil.example",
+    ] {
+        let err = acquire(
+            &origin_net(host),
+            &origin_image(),
+            &dir,
+            &AtomicBool::new(false),
+            |_| {},
+        )
+        .await
+        .unwrap_err();
+        assert!(
+            matches!(
+                err,
+                AcquireError::Download(
+                    sealflash_core::download::DownloadError::UntrustedHost { .. }
+                )
+            ),
+            "{host}: {err}"
+        );
+        let left: Vec<_> = std::fs::read_dir(&dir)
+            .map(|d| d.flatten().map(|e| e.file_name()).collect())
+            .unwrap_or_default();
+        assert!(
+            left.iter().all(|n| !n.to_string_lossy().ends_with(".iso")
+                && !n.to_string_lossy().ends_with(".part")),
+            "nichts vom fremden Server gespeichert: {left:?}"
+        );
+    }
+    let _ = std::fs::remove_dir_all(&dir);
+}

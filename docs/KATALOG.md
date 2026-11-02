@@ -54,6 +54,19 @@ nur `download_page` im Browser. `filename_pattern` beschreibt, wie die Datei typ
 Eine `manual`-Quelle braucht `"checksum": {"type": "page_listing"}` und darf keine `signature`
 haben.
 
+### `direct`
+Fester offizieller Download-Link für Hersteller, die **keine Prüfsummen** veröffentlichen (z. B.
+Windows Server Evaluation). Nur zusammen mit `"checksum": {"type": "https_origin"}`.
+
+```json
+{
+  "type": "direct",
+  "url": "https://go.microsoft.com/fwlink/?linkid=2345827&clcid=0x409&culture=en-us&country=us",
+  "version": "2025 Evaluation",
+  "filename": "WindowsServer2025_Eval_de-DE.iso"
+}
+```
+
 ## `checksum`
 
 ```json
@@ -69,6 +82,15 @@ Relative URLs beziehen sich auf das Verzeichnis des Images. Platzhalter: `{filen
 `page_listing` (nur mit `manual`): Der Hash der ausgewählten Datei muss auf dieser HTTPS-Seite
 stehen. Gezählt werden nur Hex-Werte mit genau der passenden Länge (64 Zeichen bei SHA-256).
 Steht gar kein Wert auf der Seite, ist das ein Fehler.
+
+`https_origin` (nur mit `direct`): Es gibt keine Prüfsumme. Nach allen Weiterleitungen muss die
+Datei per HTTPS von einem der **exakt** angegebenen Server kommen, sonst Abbruch. In der App
+erscheint der Eintrag gelb als „Nur Herkunft geprüft“ (Architektur E53). Nur verwenden, wenn der
+Hersteller wirklich keine Prüfsummen veröffentlicht.
+
+```json
+{ "type": "https_origin", "allowed_hosts": ["software-static.download.prss.microsoft.com"] }
+```
 
 ## Kategorie `other`
 

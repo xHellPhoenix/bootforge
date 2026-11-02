@@ -183,5 +183,10 @@
   "confirm.windows_setup": "Windows-Einrichtung",
   "forge.hint.windows_setup": "Bitte zuerst die Angaben unter „Windows-Einrichtung anpassen“ korrigieren.",
   "error.invalid_windows_setup": "Die Windows-Einstellungen sind ungültig.",
-  "error.file_unreadable": "Die Datei lässt sich nicht lesen – wurde sie verschoben, gelöscht oder fehlt die Berechtigung?"
+  "error.file_unreadable": "Die Datei lässt sich nicht lesen – wurde sie verschoben, gelöscht oder fehlt die Berechtigung?",
+  "distro.integrity.origin": "Nur Herkunft geprüft",
+  "resolve.origin_only": "Microsoft veröffentlicht hierfür keine Prüfsumme. SealFlash lädt direkt von Microsofts Download-Server (HTTPS) und bricht ab, wenn die Datei von woanders käme – eine ausgetauschte Datei auf dem Server selbst würde so aber nicht auffallen.",
+  "prepare.assurance.origin": "Keine Prüfsumme vom Hersteller verfügbar – die Datei kam per HTTPS direkt von seinem offiziellen Download-Server. Schwächer abgesichert als eine Prüfsumme.",
+  "confirm.integrity": "Echtheit",
+  "confirm.origin_only": "Nur Herkunft geprüft (keine Hersteller-Prüfsumme)"
 }

@@ -236,6 +236,7 @@
     font-size: 16px;
   }
   .result.weak,
+  .result.origin,
   .result.checksum {
     border-color: color-mix(in srgb, var(--warn) 40%, transparent);
   }

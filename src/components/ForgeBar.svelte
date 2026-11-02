@@ -19,6 +19,7 @@
     own,
     local,
     localMode,
+    windowsTarget,
     origin,
     updated,
   }: {
@@ -38,6 +39,8 @@
     local: LocalImage | null;
     /** Kommt das Image aus einer eigenen Datei (statt Download)? */
     localMode: boolean;
+    /** Wird ein Windows-Installationsstick erstellt? (Dann gelten die Windows-Einstellungen.) */
+    windowsTarget: boolean;
     origin: CatalogResponse["origin"];
     updated: string;
   } = $props();
@@ -53,7 +56,7 @@
   });
   const ready = $derived(localMode ? !!local : resolve?.status === "ok");
   // Windows-Einstellungen ungültig (z. B. Benutzername mit „?“) → erst korrigieren.
-  const winInvalid = $derived(local?.info.flash_mode === "windows" && winSetup.enabled && !!winSetup.error);
+  const winInvalid = $derived(windowsTarget && winSetup.enabled && !!winSetup.error);
   const canForge = $derived(ready && !!drive && driveFits && !busy && !winInvalid);
   const hint = $derived(
     !ready

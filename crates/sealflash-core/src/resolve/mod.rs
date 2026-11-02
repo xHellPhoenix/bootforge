@@ -55,6 +55,9 @@ pub enum ResolvedChecksum {
         value: String,
         algorithm: HashAlgorithm,
     },
+    /// Keine Prüfsumme vom Hersteller: Die Datei muss von einem dieser Server kommen.
+    /// Der SHA-256 wird beim Download berechnet und nur festgehalten.
+    HttpsOrigin { allowed_hosts: Vec<String> },
 }
 
 impl ResolvedChecksum {
@@ -62,6 +65,7 @@ impl ResolvedChecksum {
         match self {
             ResolvedChecksum::File { algorithm, .. }
             | ResolvedChecksum::Value { algorithm, .. } => *algorithm,
+            ResolvedChecksum::HttpsOrigin { .. } => HashAlgorithm::Sha256,
         }
     }
 }
@@ -131,6 +135,24 @@ pub async fn resolve<F: Fetcher>(f: &F, variant: &Variant) -> Result<ResolvedIma
         } => github_release(f, repo, asset_pattern, *include_prereleases).await?,
         // Wird vom Nutzer selbst heruntergeladen – es gibt nichts zu ermitteln.
         Source::Manual { .. } => return Err(ResolveError::Manual),
+        // Fester Link: Version und Dateiname stehen im Katalog.
+        Source::Direct {
+            url,
+            version,
+            filename,
+        } => {
+            let url = parse_https(url)?;
+            Found {
+                listing_url: url.clone(),
+                url,
+                filename: filename.clone(),
+                version: version.clone(),
+                build: None,
+                size: None,
+                checksum: None,
+                listing: Vec::new(),
+            }
+        }
     };
 
     let image_dir = found
@@ -173,6 +195,9 @@ pub async fn resolve<F: Fetcher>(f: &F, variant: &Variant) -> Result<ResolvedIma
         Checksum::File { .. } | Checksum::PageListing { .. } => {
             unreachable!("vom Validator ausgeschlossen")
         }
+        Checksum::HttpsOrigin { allowed_hosts } => ResolvedChecksum::HttpsOrigin {
+            allowed_hosts: allowed_hosts.clone(),
+        },
         Checksum::FromSource { algorithm } => {
             let value = found.checksum.clone().ok_or(ResolveError::MissingField {
                 url: found.url.to_string(),

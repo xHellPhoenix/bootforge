@@ -33,6 +33,7 @@
 
   /** Wie gut ist die Integrität abgesichert? Wird als farbiger Chip angezeigt. */
   function integrity(v: Variant): { label: string; tone: "ok" | "warn" | "" } {
+    if (v.checksum.type === "https_origin") return { label: t("distro.integrity.origin"), tone: "warn" };
     if (v.checksum.type === "page_listing") return { label: t("distro.integrity.vendor_list"), tone: "" };
     if (v.signature) return { label: t("distro.integrity.gpg"), tone: "ok" };
     if (v.checksum.algorithm === "md5") return { label: t("distro.integrity.md5"), tone: "warn" };

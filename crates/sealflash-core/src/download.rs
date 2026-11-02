@@ -51,6 +51,8 @@ pub enum DownloadError {
     Incomplete { got: u64, expected: u64 },
     #[error("Nicht genug Speicherplatz: {need} Bytes nötig, {available} frei")]
     NoSpace { need: u64, available: u64 },
+    #[error("Download wurde auf einen nicht erlaubten Server umgeleitet: {host}")]
+    UntrustedHost { host: String },
 }
 
 impl From<std::io::Error> for DownloadError {
@@ -67,6 +69,8 @@ pub struct Opened<B> {
     pub total: Option<u64>,
     /// ETag oder Last-Modified – für späteres `If-Range`.
     pub validator: Option<String>,
+    /// Adresse nach allen Weiterleitungen (von dort kommen die Daten wirklich).
+    pub final_url: Url,
     pub body: B,
 }
 
@@ -114,6 +118,22 @@ pub async fn download<S: RangeSource>(
     dest: &Path,
     algorithm: HashAlgorithm,
     cancel: &AtomicBool,
+    on_progress: impl FnMut(Progress) + Send,
+) -> Result<Downloaded, DownloadError> {
+    download_pinned(src, url, dest, algorithm, None, cancel, on_progress).await
+}
+
+/// Wie [`download`], aber die Daten müssen nach allen Weiterleitungen von einem der
+/// `allowed_hosts` kommen (exakter Hostname). Geprüft wird, bevor auch nur ein Byte gespeichert
+/// wird. Für Hersteller ohne veröffentlichte Prüfsummen: Dann ist die Herkunft das Einzige,
+/// was sich absichern lässt (HTTPS garantiert, dass die Daten wirklich von diesem Server kommen).
+pub async fn download_pinned<S: RangeSource>(
+    src: &S,
+    url: &Url,
+    dest: &Path,
+    algorithm: HashAlgorithm,
+    allowed_hosts: Option<&[String]>,
+    cancel: &AtomicBool,
     mut on_progress: impl FnMut(Progress) + Send,
 ) -> Result<Downloaded, DownloadError> {
     let part = with_suffix(dest, ".part");
@@ -148,6 +168,16 @@ pub async fn download<S: RangeSource>(
 
     // 2) Anfrage.
     let mut opened = src.open(url, existing, validator.as_deref()).await?;
+    if let Some(hosts) = allowed_hosts {
+        let host = opened
+            .final_url
+            .host_str()
+            .unwrap_or("")
+            .to_ascii_lowercase();
+        if opened.final_url.scheme() != "https" || !hosts.contains(&host) {
+            return Err(DownloadError::UntrustedHost { host });
+        }
+    }
     if existing > 0 && !opened.resumed {
         // Server liefert komplett neu (kein Range-Support oder Datei geändert) → von vorn.
         existing = 0;
@@ -379,6 +409,7 @@ impl RangeSource for HttpClient {
             resumed,
             total,
             validator,
+            final_url: resp.url().clone(),
             body: HttpBody(resp, url.to_string()),
         })
     }
@@ -404,6 +435,8 @@ pub mod fake {
         pub last_from: Mutex<u64>,
         /// Gemeldete Gesamtgröße überschreiben (z. B. riesig, um „Platte voll“ zu testen).
         pub claimed_total: Option<u64>,
+        /// So tun, als wäre die Anfrage hierhin weitergeleitet worden.
+        pub redirect_to: Option<Url>,
     }
 
     impl FakeSource {
@@ -417,6 +450,7 @@ pub mod fake {
                 opens: AtomicUsize::new(0),
                 last_from: Mutex::new(0),
                 claimed_total: None,
+                redirect_to: None,
             }
         }
     }
@@ -443,7 +477,7 @@ pub mod fake {
         type Body = FakeBody;
         async fn open(
             &self,
-            _url: &Url,
+            url: &Url,
             from: u64,
             if_range: Option<&str>,
         ) -> Result<Opened<FakeBody>, FetchError> {
@@ -461,6 +495,7 @@ pub mod fake {
                 resumed: honor,
                 total: Some(self.claimed_total.unwrap_or(self.data.len() as u64)),
                 validator: Some(self.etag.clone()),
+                final_url: self.redirect_to.clone().unwrap_or_else(|| url.clone()),
                 body: FakeBody {
                     chunks: chunks.into_iter(),
                     fail: fail_after.is_some(),

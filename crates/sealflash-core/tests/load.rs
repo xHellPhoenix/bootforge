@@ -21,11 +21,10 @@ fn tempdir(name: &str) -> std::path::PathBuf {
 
 /// Gültiger Katalog, der sich vom eingebauten unterscheidet (am Datum erkennbar).
 fn remote_catalog() -> String {
-    catalog::BUNDLED_CATALOG_JSON.replacen(
-        r#""updated": "2026-11-01""#,
-        r#""updated": "2099-01-01""#,
-        1,
-    )
+    // Über die JSON-Struktur statt per Text: unabhängig vom aktuellen Datum im Katalog.
+    let mut c: serde_json::Value = serde_json::from_str(catalog::BUNDLED_CATALOG_JSON).unwrap();
+    c["updated"] = "2099-01-01".into();
+    serde_json::to_string_pretty(&c).unwrap()
 }
 
 #[tokio::test]

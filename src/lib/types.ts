@@ -23,8 +23,11 @@ export interface Variant {
   min_usb_gb?: number;
   source:
     | { type: "directory_listing" | "json_api" | "github_release"; [k: string]: unknown }
-    | { type: "manual"; download_page: string; filename_pattern: string };
-  checksum: { type: "file" | "from_source" | "page_listing"; algorithm: "sha256" | "sha512" | "md5" };
+    | { type: "manual"; download_page: string; filename_pattern: string }
+    | { type: "direct"; url: string; version: string; filename: string };
+  checksum:
+    | { type: "file" | "from_source" | "page_listing"; algorithm: "sha256" | "sha512" | "md5" }
+    | { type: "https_origin"; allowed_hosts: string[] };
   signature?: { type: "gpg_detached" | "gpg_clearsigned"; signs: "checksum_file" | "image" };
   notes?: LocalizedText;
 }
@@ -74,7 +77,8 @@ export interface ResolvedImage {
   size: number | null;
   checksum:
     | { type: "file"; url: string; algorithm: HashAlgorithm }
-    | { type: "value"; value: string; algorithm: HashAlgorithm };
+    | { type: "value"; value: string; algorithm: HashAlgorithm }
+    | { type: "https_origin"; allowed_hosts: string[] };
   signature?: {
     kind: "gpg_detached" | "gpg_clearsigned";
     signs: "checksum_file" | "image";
@@ -140,7 +144,7 @@ export interface Acquired {
   algorithm: HashAlgorithm;
   hash: string;
   signer: Signer | null;
-  assurance: "signed" | "checksum" | "weak";
+  assurance: "signed" | "checksum" | "weak" | "origin";
   from_cache: boolean;
 }
 
