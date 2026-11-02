@@ -1,8 +1,13 @@
 <script lang="ts">
   import { lt, t } from "../lib/i18n.svelte";
-  import type { CatalogResponse, Distro, ResolveState, Variant } from "../lib/types";
+  import { formatBytes } from "../lib/format";
+  import { i18n } from "../lib/i18n.svelte";
+  import type { CatalogResponse, Distro, Drive, ResolveState, Variant } from "../lib/types";
 
   let {
+    drive,
+    driveFits,
+    onchoosedrive,
     busy,
     ondownload,
     distro,
@@ -11,6 +16,9 @@
     origin,
     updated,
   }: {
+    drive: Drive | null;
+    driveFits: boolean;
+    onchoosedrive: () => void;
     /** Fortschrittsansicht offen → Knöpfe sperren. */
     busy: boolean;
     ondownload: (title: string) => void;
@@ -31,9 +39,11 @@
   });
   const ready = $derived(resolve?.status === "ok");
 
-  // Phase 1: noch keine USB-Erkennung → Forge bleibt gesperrt.
-  const usbSelected = false;
-  const hint = $derived(!variant ? t("forge.hint.need_variant") : t("forge.hint.need_usb"));
+  // Bis Phase 5 bleibt „Forge!“ gesperrt – das Schreiben auf den Stick gibt es noch nicht.
+  const flashingAvailable = false;
+  const hint = $derived(
+    !ready ? t("forge.hint.need_variant") : !drive || !driveFits ? t("forge.hint.need_usb") : t("forge.hint.phase5"),
+  );
 </script>
 
 <footer>
@@ -42,10 +52,14 @@
       <span class="label">{t("step.distro")}</span>
       <span class="value">{label}</span>
     </div>
-    <div class="slot">
+    <button class="slot drive" onclick={onchoosedrive} disabled={busy}>
       <span class="label">{t("step.usb")}</span>
-      <span class="value muted" title={t("usb.placeholder")}>{t("usb.none_selected")}</span>
-    </div>
+      {#if drive}
+        <span class="value" class:bad={!driveFits}>{drive.name} · {formatBytes(drive.size, i18n.locale)} ▾</span>
+      {:else}
+        <span class="value pick">{t("usb.choose")} ▾</span>
+      {/if}
+    </button>
   </div>
 
   <div class="right">
@@ -53,7 +67,7 @@
     <button class="secondary" disabled={!ready || busy} onclick={() => ondownload(label)}>
       {t("forge.download_only")}
     </button>
-    <button class="forge" disabled={!ready || !usbSelected || busy} title={hint}>
+    <button class="forge" disabled={!ready || !drive || !driveFits || !flashingAvailable || busy} title={hint}>
       {t("forge.button")}
     </button>
   </div>
@@ -75,14 +89,29 @@
   .slot {
     display: grid;
   }
+  .slot.drive {
+    text-align: left;
+    padding: 4px 10px;
+    margin: -4px -10px;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    background: none;
+  }
+  .slot.drive:not(:disabled):hover {
+    border-color: var(--border);
+    background: var(--bg-elev-2);
+  }
+  .value.pick {
+    color: var(--accent-hot);
+  }
+  .value.bad {
+    color: var(--danger);
+  }
   .label {
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.8px;
     color: var(--text-faint);
-  }
-  .value.muted {
-    color: var(--text-dim);
   }
   .right {
     margin-left: auto;

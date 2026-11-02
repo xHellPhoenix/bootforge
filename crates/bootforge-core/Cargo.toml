@@ -23,6 +23,12 @@ md-5.workspace = true
 # Windows: CNG (in Windows eingebaut), sonst: Nettle (Systembibliothek, Paket `nettle-dev` zum Bauen).
 [target.'cfg(windows)'.dependencies]
 sequoia-openpgp = { workspace = true, features = ["crypto-cng"] }
+# Laufwerkserkennung über die Windows-Verwaltungsschnittstelle WMI
+# ACHTUNG: wmi erlaubt windows/windows-core ">=0.59, <0.63", und Cargo wählt beide unabhängig.
+# Tauri zieht windows 0.61; ohne Festlegung landet windows-core 0.62 dazu → wmi kompiliert nicht.
+# Festgelegt im Cargo.lock mit:  cargo update -p windows-core@0.62.2 --precise 0.61.2
+# (CI baut mit --locked, damit das nicht unbemerkt verloren geht.)
+wmi = "0.18"
 
 [target.'cfg(not(windows))'.dependencies]
 sequoia-openpgp = { workspace = true, features = ["crypto-nettle"] }

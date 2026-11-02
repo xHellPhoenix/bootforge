@@ -170,6 +170,61 @@ Der Dateiname kommt vom Server. Bevor er als Pfad verwendet wird, wird geprüft:
 kein `..`, kein versteckter Name, keine unter Windows verbotenen Zeichen. Sonst könnte ein
 manipulierter Server z. B. `../../.bashrc` überschreiben (Path Traversal).
 
+### E23 – Laufwerke: Rohdaten und Urteil getrennt
+Der Plattform-Code (`device/linux.rs`, `device/windows.rs`) sammelt nur **Rohdaten**. Ob ein
+Laufwerk beschrieben werden darf, entscheidet allein `device::classify`: eine reine Funktion ohne
+Systemzugriff, für Linux und Windows dieselbe, vollständig getestet. Prinzip **„Default deny“**:
+Ein Laufwerk ist nur wählbar, wenn *jede* Regel erfüllt ist. Fehlt eine Information, gilt das
+Laufwerk als verboten (unter Windows z. B. unbekanntes `IsBoot` → als System behandelt).
+
+Die Regeln in der Reihenfolge ihrer Priorität:
+1. **System:** trägt `/`, `/boot`, `/home` … oder Swap (Linux), bzw. `IsBoot`, `IsSystem` oder die
+   Auslagerungsdatei (Windows). Gilt **auch für USB**, z. B. wenn Linux gerade vom Stick läuft.
+2. **Nur USB** (Bus-Typ).
+3. **Zweite, unabhängige Prüfung:** Linux: Gerätename `sdX`. Windows: Das Systemlaufwerk
+   (`%SystemDrive%`, meist `C:`) liegt nicht darauf, unabhängig von dem, was Windows bei
+   `IsBoot`/`IsSystem` meldet.
+4. Nicht schreibgeschützt, nicht von LVM/RAID/LUKS belegt, Medium eingelegt.
+5. Höchstens 2 TB, ohne Ausnahme.
+6. **Externe Festplatten** (nicht als Wechselmedium gemeldet und über 128 GB) sind ausgeblendet,
+   außer man setzt ausdrücklich das Häkchen. Auf solchen Platten liegen oft Backups. Viele moderne
+   Sticks melden sich übrigens *nicht* als Wechselmedium, deshalb reicht dieses Merkmal allein
+   nicht als Regel.
+
+### E24 – Linux: `/sys` statt `lsblk`
+`/sys/block` ist die stabile Kernel-Schnittstelle (die auch `lsblk` liest). So hängen wir nicht von
+einem externen Programm und dessen Ausgabeformat ab. Eingebundene Partitionen werden über die
+**Gerätenummer** (Major:Minor) mit `/proc/self/mountinfo` abgeglichen, nicht über Pfadnamen, die
+auch `/dev/disk/by-uuid/…` heißen können. LVM/LUKS/RAID wird über `holders/` erkannt; trägt so ein
+Gerät `/` oder `/home`, gilt das USB-Laufwerk als Systemlaufwerk.
+
+### E25 – Windows: WMI (`MSFT_Disk`)
+`MSFT_Disk` liefert `BusType`, `IsBoot` und `IsSystem` direkt; dazu kommen `MSFT_Partition`
+(Laufwerksbuchstaben), `Win32_DiskDrive` (Wechselmedium) und `Win32_PageFileUsage`. Die Umrechnung
+in Rohdaten (`windows_map.rs`) ist reiner Code und wird auch unter Linux getestet. Eine WMI-Verbindung
+darf den Thread nicht wechseln (COM), deshalb läuft die Erkennung über `spawn_blocking`.
+
+Stolperstein: `wmi` erlaubt `windows-core` in einem Versionsbereich, und Cargo hat eine inkompatible
+Mischung gewählt (0.61 + 0.62). Gelöst im `Cargo.lock`; das CI baut mit `--locked`, damit das nicht
+unbemerkt verloren geht.
+
+### E26 – Aktualisieren per Abfrage alle 2 s
+Solange der Auswahldialog offen ist, wird die Liste alle 2 Sekunden neu eingelesen. Echte
+Hotplug-Benachrichtigungen (udev bzw. `WM_DEVICECHANGE`) wären eleganter, sind aber pro System
+aufwendig. Ein Scan dauert nur Millisekunden. Vor dem Schreiben (Phase 5) wird das Laufwerk
+ohnehin noch einmal frisch geprüft.
+
+### E27 – Entwickler-Schalter nur in Debug-Builds
+`BOOTFORGE_DEV_SYSROOT` lässt die App einen nachgebauten `/sys`-Baum lesen, um die GUI ohne echten
+Stick zu testen. Der Code dafür steht hinter `cfg(debug_assertions)` und ist in Release-Builds gar
+nicht vorhanden, damit niemand einer echten Installation ein falsches Laufwerk unterschieben kann.
+
+### E28 – CI unter Linux und Windows
+GitHub Actions baut und testet jeden Push auf `ubuntu-24.04` und `windows-latest`. So wird auch
+der Windows-Code (WMI, CNG) wirklich ausgeführt. `.gitattributes` erzwingt LF-Zeilenenden und
+schützt die Signatur-Fixtures: Würde Git sie unter Windows nach CRLF umwandeln, wären die echten
+Signaturen ungültig.
+
 ## Offene Punkte für spätere Phasen
 - **Kompatibilität des Online-Katalogs:** Wegen `deny_unknown_fields` lehnt eine ältere App einen
   Katalog mit neuen Feldern ab (z. B. `allow_v3`) und fällt auf ihren Cache zurück. Neue Felder darf

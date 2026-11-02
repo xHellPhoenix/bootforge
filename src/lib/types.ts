@@ -126,3 +126,30 @@ export interface Acquired {
   assurance: "signed" | "checksum" | "weak";
   from_cache: boolean;
 }
+
+// --- Phase 4: Laufwerke ---------------------------------------------------------------------------
+
+export type Bus = "usb" | "sata" | "nvme" | "mmc" | "scsi" | "virtio" | "virtual" | "other";
+
+/** Warum ein Laufwerk nicht wählbar ist (Rust: `device::Rejection`). */
+export type Rejection =
+  | { reason: "system"; detail: string }
+  | { reason: "not_usb"; detail: Bus }
+  | { reason: "unexpected"; detail: string }
+  | { reason: "read_only" }
+  | { reason: "in_use"; detail: string }
+  | { reason: "no_media" }
+  | { reason: "too_large" }
+  | { reason: "external_hdd" };
+
+/** Rust: `device::Drive`. */
+export interface Drive {
+  id: string;
+  name: string;
+  serial: string | null;
+  size: number;
+  bus: Bus;
+  removable: boolean;
+  mounts: string[];
+  rejection: Rejection | null;
+}

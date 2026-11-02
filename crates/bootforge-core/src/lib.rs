@@ -8,6 +8,7 @@
 
 pub mod acquire;
 pub mod catalog;
+pub mod device;
 pub mod download;
 pub mod http;
 pub mod resolve;

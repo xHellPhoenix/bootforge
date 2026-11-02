@@ -1,0 +1,12 @@
+# Zeilenenden immer LF – auch unter Windows.
+# Grund: Tests vergleichen Dateien Byte für Byte (z. B. catalog.schema.json mit dem generierten
+# Schema), und Git würde unter Windows sonst CRLF daraus machen.
+* text=auto eol=lf
+
+# Echte Prüfsummen- und Signaturdateien der Distros: NIE verändern, sonst sind die Signaturen
+# ungültig und die GPG-Tests schlagen fehl.
+crates/bootforge-core/tests/fixtures/** -text
+
+*.png binary
+*.ico binary
+*.icns binary

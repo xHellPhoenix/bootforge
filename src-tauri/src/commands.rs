@@ -6,6 +6,7 @@ use std::sync::atomic::Ordering;
 
 use bootforge_core::acquire::{self, AcquireEvent, Acquired};
 use bootforge_core::catalog::load::{self, DEFAULT_CATALOG_URL, Loaded};
+use bootforge_core::device::{self, Drive, ScanOptions};
 use bootforge_core::resolve::{self, ResolvedImage};
 use tauri::ipc::Channel;
 use tauri::{AppHandle, Manager, State};
@@ -132,6 +133,29 @@ pub async fn prepare_image(
 #[tauri::command]
 pub fn cancel_prepare(state: State<'_, AppState>) {
     state.cancel.store(true, Ordering::SeqCst);
+}
+
+/// Listet alle Laufwerke mit Urteil (wählbar oder nicht, mit Grund).
+///
+/// Die Erkennung ist synchroner Code (unter Windows muss die WMI-Verbindung im selben Thread
+/// bleiben). `spawn_blocking` verlegt sie in einen eigenen Thread, damit die App nicht hängt.
+#[tauri::command]
+pub async fn list_drives(show_external_hdds: Option<bool>) -> Result<Vec<Drive>, AppError> {
+    let opts = ScanOptions {
+        show_external_hdds: show_external_hdds.unwrap_or(false),
+    };
+    tauri::async_runtime::spawn_blocking(move || {
+        // Nur in Debug-Builds: nachgebautes /sys zum Testen der GUI ohne echten Stick.
+        // In Release-Builds existiert dieser Zweig gar nicht.
+        #[cfg(all(debug_assertions, target_os = "linux"))]
+        if let Ok(root) = std::env::var("BOOTFORGE_DEV_SYSROOT") {
+            return device::list_from_root(std::path::Path::new(&root), opts);
+        }
+        device::list(opts)
+    })
+    .await
+    .map_err(|e| AppError::Internal(e.to_string()))?
+    .map_err(|e| AppError::DeviceScan(e.to_string()))
 }
 
 #[derive(serde::Serialize)]

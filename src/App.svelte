@@ -2,12 +2,13 @@
   import { onMount } from "svelte";
   import { api } from "./lib/api";
   import { i18n, languages, t } from "./lib/i18n.svelte";
-  import type { AppError, CatalogResponse, Distro, ResolveState, Variant } from "./lib/types";
+  import type { AppError, CatalogResponse, Distro, Drive, ResolveState, Variant } from "./lib/types";
   import DistroList from "./components/DistroList.svelte";
   import VariantPanel from "./components/VariantPanel.svelte";
   import ForgeBar from "./components/ForgeBar.svelte";
   import Stepper from "./components/Stepper.svelte";
   import PreparePanel from "./components/PreparePanel.svelte";
+  import UsbDialog from "./components/UsbDialog.svelte";
   import { createJob, run, type Job } from "./lib/job.svelte";
 
   let response = $state<CatalogResponse | null>(null);
@@ -22,8 +23,20 @@
   /** Laufender oder zuletzt gelaufener Download (dann wird die Fortschrittsansicht gezeigt). */
   let job = $state<Job | null>(null);
 
-  // Abgeleiteter Zustand: Schritt 1 ist erst erledigt, wenn die neueste Version feststeht.
-  const currentStep = $derived(selectedVariant && resolved[selectedVariant.id]?.status === "ok" ? 2 : 1);
+  let selectedDrive = $state<Drive | null>(null);
+  let usbDialogOpen = $state(false);
+
+  const resolvedImage = $derived.by(() => {
+    const r = selectedVariant && resolved[selectedVariant.id];
+    return r?.status === "ok" ? r.image : null;
+  });
+
+  // Abgeleiteter Zustand: Schritt 1 ist erst erledigt, wenn die neueste Version feststeht,
+  // Schritt 2, wenn ein Stick gewählt ist, der groß genug ist.
+  const driveFits = $derived(
+    !!selectedDrive && (!resolvedImage?.size || selectedDrive.size >= resolvedImage.size),
+  );
+  const currentStep = $derived(!resolvedImage ? 1 : driveFits ? 3 : 2);
 
   onMount(async () => {
     try {
@@ -115,7 +128,25 @@
         />
       </main>
     {/if}
+    {#if usbDialogOpen}
+      <UsbDialog
+        selected={selectedDrive}
+        imageSize={resolvedImage?.size ?? null}
+        minGb={selectedVariant?.min_usb_gb ?? null}
+        onselect={(d) => {
+          selectedDrive = d;
+          usbDialogOpen = false;
+        }}
+        onclose={(stillPresent) => {
+          if (!stillPresent) selectedDrive = null;
+          usbDialogOpen = false;
+        }}
+      />
+    {/if}
     <ForgeBar
+      drive={selectedDrive}
+      {driveFits}
+      onchoosedrive={() => (usbDialogOpen = true)}
       busy={job !== null}
       ondownload={startDownload}
       distro={selectedDistro}
