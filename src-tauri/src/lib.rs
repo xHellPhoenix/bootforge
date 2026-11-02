@@ -5,6 +5,8 @@
 
 mod commands;
 mod error;
+mod events;
+mod forge;
 mod state;
 
 use bootforge_core::http::HttpClient;
@@ -20,6 +22,7 @@ pub fn run() {
             commands::prepare_image,
             commands::cancel_prepare,
             commands::list_drives,
+            commands::forge,
             commands::app_info
         ])
         .run(tauri::generate_context!())

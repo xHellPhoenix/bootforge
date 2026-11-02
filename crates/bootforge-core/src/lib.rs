@@ -10,6 +10,7 @@ pub mod acquire;
 pub mod catalog;
 pub mod device;
 pub mod download;
+pub mod flash;
 pub mod http;
 pub mod resolve;
 pub mod verify;

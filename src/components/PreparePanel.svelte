@@ -13,6 +13,8 @@
       ? (job.progress.total - job.progress.done) / job.progress.bps
       : null,
   );
+  // Nur unter Windows erscheint nach dem Schreiben die irreführende „Formatieren?“-Abfrage.
+  const isWindows = navigator.userAgent.includes("Windows");
   const signerName = $derived(job.signer?.user_id?.replace(/\s*<.*>$/, "") ?? job.signer?.fingerprint ?? "");
 </script>
 
@@ -51,7 +53,20 @@
     {/each}
   </ol>
 
-  {#if job.result}
+  {#if job.kind === "forge" && job.flashed && job.result}
+    {@const r = job.result}
+    {@const f = job.flashed}
+    <div class="result forged">
+      <strong>✓ {t("forge.done")}</strong>
+      <p>{t("forge.done_text", { size: formatBytes(f.written, i18n.locale) })}</p>
+      {#if isWindows}<p class="hint">⚠ {t("forge.windows_format_hint")}</p>{/if}
+      <p class="dim">{t(`prepare.assurance.${r.assurance}`)}</p>
+      <dl>
+        <dt>{t("forge.written_hash")}</dt>
+        <dd class="mono">{f.sha256}</dd>
+      </dl>
+    </div>
+  {:else if job.result && job.kind === "download"}
     {@const r = job.result}
     <div class="result {r.assurance}">
       <strong>✓ {t("prepare.done")}</strong>
@@ -78,7 +93,9 @@
       <button class="secondary" onclick={cancel}>{t("prepare.cancel")}</button>
     {:else}
       <button class="secondary" onclick={onclose}>{t("prepare.back")}</button>
-      {#if job.error && job.error.code !== "checksum_mismatch" && job.error.code !== "signature_invalid"}
+      <!-- Fortsetzen nur beim reinen Download. Erneutes Schreiben soll bewusst über „Forge!“ und
+           eine neue Bestätigung laufen. -->
+      {#if job.kind === "download" && job.error && job.error.code !== "checksum_mismatch" && job.error.code !== "signature_invalid"}
         <button class="primary" onclick={() => run(job)}>{t("prepare.resume")}</button>
       {/if}
     {/if}
@@ -207,6 +224,16 @@
   }
   .result strong {
     color: var(--ok);
+  }
+  .result.forged {
+    border-width: 2px;
+  }
+  .result .hint {
+    color: var(--warn);
+    font-weight: 600;
+  }
+  .result.forged strong {
+    font-size: 16px;
   }
   .result.weak,
   .result.checksum {

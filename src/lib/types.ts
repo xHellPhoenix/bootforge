@@ -104,6 +104,9 @@ export interface AppInfo {
 
 export type Stage = "checksum" | "signature" | "cache_check" | "download" | "verify" | "image_signature";
 
+/** Schritte beim Schreiben (Rust: `flash::FlashStage`). */
+export type FlashStage = "check_drive" | "verify_image" | "prepare" | "write" | "readback";
+
 export interface Signer {
   fingerprint: string;
   user_id: string | null;
@@ -152,4 +155,23 @@ export interface Drive {
   removable: boolean;
   mounts: string[];
   rejection: Rejection | null;
+}
+
+// --- Phase 5: Schreiben ---------------------------------------------------------------------------
+
+export type FlashEvent =
+  | { event: "stage"; stage: FlashStage }
+  | { event: "progress"; stage: FlashStage; done: number; total: number | null; bytes_per_sec: number };
+
+/** Fortschritt von `forge` (Rust: `events::ForgeEvent`). */
+export type ForgeEvent = { source: "acquire"; event: AcquireEvent } | { source: "flash"; event: FlashEvent };
+
+export interface FlashReport {
+  written: number;
+  sha256: string;
+}
+
+export interface ForgeResult {
+  acquired: Acquired;
+  report: FlashReport;
 }

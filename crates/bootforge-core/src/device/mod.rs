@@ -10,7 +10,7 @@
 //! Ein Laufwerk ist nur dann wählbar, wenn **alle** Regeln erfüllt sind („Default deny“).
 //! Unbekannt heißt: nicht erlaubt.
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 #[cfg(target_os = "linux")]
 pub mod linux;
@@ -24,7 +24,7 @@ pub const HARD_MAX_SIZE: u64 = 2 * 1000 * 1000 * 1000 * 1000; // 2 TB
 pub const EXTERNAL_HDD_THRESHOLD: u64 = 128 * 1000 * 1000 * 1000; // 128 GB
 
 /// Wie ist das Laufwerk angeschlossen?
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Bus {
     Usb,
@@ -62,7 +62,7 @@ pub struct RawDrive {
 }
 
 /// Warum ein Laufwerk nicht wählbar ist.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "reason", content = "detail", rename_all = "snake_case")]
 pub enum Rejection {
     /// Enthält das laufende System. Wichtigste Regel – wird immer zuerst gemeldet.
@@ -82,7 +82,7 @@ pub enum Rejection {
 }
 
 /// Ein Laufwerk mit Urteil.
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Drive {
     pub id: String,
     /// Anzeigename, z. B. „SanDisk Ultra“.
@@ -102,7 +102,7 @@ impl Drive {
     }
 }
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ScanOptions {
     /// Große USB-Laufwerke ohne Wechselmedium-Kennung (externe Festplatten) anzeigen.
     pub show_external_hdds: bool,
@@ -160,6 +160,39 @@ fn display_name(raw: &RawDrive) -> String {
 /// Alle Laufwerke des Systems, wählbare zuerst.
 pub fn list(opts: ScanOptions) -> std::io::Result<Vec<Drive>> {
     Ok(judge(scan_raw()?, opts))
+}
+
+/// Prüft unmittelbar vor dem Schreiben, ob das gewählte Laufwerk noch **dasselbe** und noch
+/// zulässig ist. Zwischen Auswahl und Klick auf „Forge!“ kann viel passieren: Stick abgezogen,
+/// anderer Stick eingesteckt (bekommt dann evtl. denselben Namen `/dev/sdb`!), Partition eingehängt …
+pub fn recheck(expected: &Drive, opts: ScanOptions) -> Result<Drive, String> {
+    let current = list(opts).map_err(|e| format!("Laufwerke nicht lesbar: {e}"))?;
+    recheck_against(expected, &current)
+}
+
+/// Der Vergleich als reine Funktion (testbar).
+pub fn recheck_against(expected: &Drive, current: &[Drive]) -> Result<Drive, String> {
+    let now = current
+        .iter()
+        .find(|d| d.id == expected.id)
+        .ok_or_else(|| format!("{} ist nicht mehr vorhanden (abgezogen?)", expected.id))?;
+    if let Some(r) = &now.rejection {
+        return Err(format!("{} ist nicht mehr zulässig: {r:?}", expected.id));
+    }
+    // Gleiche Gerätedatei heißt nicht gleicher Stick – deshalb Größe, Name und Seriennummer vergleichen.
+    if now.size != expected.size || now.name != expected.name || now.serial != expected.serial {
+        return Err(format!(
+            "an {} steckt ein anderes Gerät: erwartet „{}“ ({} Bytes, Seriennr. {:?}), gefunden „{}“ ({} Bytes, Seriennr. {:?})",
+            expected.id,
+            expected.name,
+            expected.size,
+            expected.serial,
+            now.name,
+            now.size,
+            now.serial
+        ));
+    }
+    Ok(now.clone())
 }
 
 /// Wie [`list`], aber mit einem anderen Wurzelverzeichnis statt `/` (nachgebautes `/sys`).
@@ -366,6 +399,48 @@ mod tests {
                 ..stick()
             }),
             Some(Rejection::TooLarge)
+        );
+    }
+
+    #[test]
+    fn recheck_detects_swapped_stick() {
+        let chosen = classify(&stick(), ScanOptions::default());
+        let ok = recheck_against(&chosen, std::slice::from_ref(&chosen));
+        assert_eq!(ok.as_ref().map(|d| &d.id), Ok(&chosen.id));
+
+        // Abgezogen
+        assert!(
+            recheck_against(&chosen, &[])
+                .unwrap_err()
+                .contains("nicht mehr vorhanden")
+        );
+
+        // Anderer Stick unter demselben /dev/sdb (andere Seriennummer)
+        let other = classify(
+            &RawDrive {
+                serial: Some("ANDERS".into()),
+                ..stick()
+            },
+            ScanOptions::default(),
+        );
+        assert!(
+            recheck_against(&chosen, &[other])
+                .unwrap_err()
+                .contains("anderes Gerät")
+        );
+
+        // Gleicher Stick, aber jetzt nicht mehr zulässig (z. B. als / eingebunden)
+        let now_system = classify(
+            &RawDrive {
+                system: Some("als / eingebunden".into()),
+                ..stick()
+            },
+            ScanOptions::default(),
+        );
+        assert!(
+            recheck_against(&chosen, &[now_system])
+                .unwrap_err()
+                .contains("nicht mehr zulässig")
         );
     }
 

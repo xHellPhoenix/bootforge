@@ -17,7 +17,7 @@
     imageSize: number | null;
     /** Empfohlene Mindestgröße laut Katalog (nur Hinweis). */
     minGb: number | null;
-    onselect: (d: Drive) => void;
+    onselect: (d: Drive, showExternalHdds: boolean) => void;
     /** `stillPresent`: Ist der bisher gewählte Stick noch eingesteckt und wählbar? */
     onclose: (stillPresent: boolean) => void;
   } = $props();
@@ -145,7 +145,7 @@
 
     <footer>
       <button class="secondary" onclick={close}>{t("usb.close")}</button>
-      <button class="primary" disabled={!pickedDrive} onclick={() => pickedDrive && onselect(pickedDrive)}>
+      <button class="primary" disabled={!pickedDrive} onclick={() => pickedDrive && onselect(pickedDrive, showHdds)}>
         {t("usb.select")}
       </button>
     </footer>

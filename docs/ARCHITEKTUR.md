@@ -204,9 +204,9 @@ Gerät `/` oder `/home`, gilt das USB-Laufwerk als Systemlaufwerk.
 in Rohdaten (`windows_map.rs`) ist reiner Code und wird auch unter Linux getestet. Eine WMI-Verbindung
 darf den Thread nicht wechseln (COM), deshalb läuft die Erkennung über `spawn_blocking`.
 
-Stolperstein: `wmi` erlaubt `windows-core` in einem Versionsbereich, und Cargo hat eine inkompatible
-Mischung gewählt (0.61 + 0.62). Gelöst im `Cargo.lock`; das CI baut mit `--locked`, damit das nicht
-unbemerkt verloren geht.
+Stolperstein: `wmi` erlaubt `windows`/`windows-core` in einem Versionsbereich, und Cargo hat eine
+inkompatible Mischung gewählt (0.61 + 0.62). Gelöst im `Cargo.lock` (beide auf dieselbe Version wie
+Tauri); das CI baut mit `--locked`, damit das nicht unbemerkt verloren geht.
 
 ### E26 – Aktualisieren per Abfrage alle 2 s
 Solange der Auswahldialog offen ist, wird die Liste alle 2 Sekunden neu eingelesen. Echte
@@ -225,6 +225,67 @@ der Windows-Code (WMI, CNG) wirklich ausgeführt. `.gitattributes` erzwingt LF-Z
 schützt die Signatur-Fixtures: Würde Git sie unter Windows nach CRLF umwandeln, wären die echten
 Signaturen ungültig.
 
+### E29 – Dreifache Prüfung beim Schreiben
+1. **Vor dem Schreiben** wird die Image-Datei noch einmal gehasht. Stimmt der Hash nicht, wird der
+   Stick gar nicht angefasst.
+2. **Während des Schreibens** wird die Datei erneut gehasht. Wurde sie zwischen Prüfung und Schreiben
+   ausgetauscht (TOCTOU: „time of check to time of use“), wird der Anfang des Sticks genullt, damit
+   er nicht mit Mischdaten bootet.
+3. **Danach wird zurückgelesen** und mit dem Geschriebenen verglichen. Das erkennt defekte Sticks und
+   **gefälschte** Sticks, die mehr Speicher vorgeben, als sie haben (sie überschreiben dann den Anfang
+   wieder). Der Test `fake_capacity_stick_detected` simuliert genau das.
+
+Schreibzugriffe gehen am Cache vorbei (Linux `O_DIRECT`, Windows `FILE_FLAG_NO_BUFFERING`), sonst
+käme das Zurücklesen aus dem RAM und würde nichts beweisen. Dafür müssen Puffer im Speicher auf
+4096 Bytes ausgerichtet sein (`AlignedBuf`), und jeder Schreibzugriff muss ein Vielfaches davon
+sein. Der letzte Block wird deshalb mit Nullen aufgefüllt.
+
+### E30 – Laufwerk unmittelbar vor dem Schreiben neu prüfen
+Zwischen Auswahl und „Forge!“ kann viel passieren. Unter Linux bekommt ein neu eingesteckter Stick
+sogar oft denselben Namen `/dev/sdb`. `device::recheck` scannt deshalb neu, wendet alle Regeln erneut
+an und vergleicht Größe, Name und Seriennummer. Diese Prüfung läuft **in dem Prozess, der schreibt**
+(unter Linux also im Root-Helper), und verlässt sich nicht auf das, was die GUI schickt.
+
+### E31 – Bestätigung durch Abtippen, im Backend erneut geprüft
+Ein versehentlicher Klick darf keinen Stick löschen, deshalb muss man den Namen des Sticks abtippen.
+Der Command `forge` prüft den eingetippten Namen **noch einmal selbst**. Ein Fehler in der GUI kann die
+Bestätigung so nicht aushebeln. Nach einem Fehler gibt es bewusst kein „Nochmal“, nur „Zurück“:
+Jeder Schreibversuch braucht eine neue Bestätigung.
+
+### E32 – Linux: kleiner Root-Helper über pkexec
+Die GUI läuft als normaler Nutzer. WebKitGTK mit Root-Rechten wäre eine riesige Angriffsfläche.
+Geschrieben wird von `bootforge-flash-helper`: kein Netzwerk, keine GUI, eine Aufgabe. Er bekommt die
+Anfrage als JSON über stdin und meldet Fortschritt als JSON-Zeilen. Er **misstraut** der Anfrage:
+- Das Laufwerk wird neu erkannt und muss alle Regeln erfüllen.
+- Das Image muss eine normale Datei sein (kein Symlink) und dem aufrufenden Nutzer gehören
+  (`PKEXEC_UID`). Sonst könnte man ihn benutzen, um z. B. `/etc/shadow` auf einen Stick zu kopieren.
+  Schon der Hash-Zwang verhindert das (man müsste den Hash der geheimen Datei kennen); die
+  Eigentümerprüfung ist eine zweite Sperre.
+- Schließt die App stdin (auch bei einem Absturz), bricht der Helper ab. Ein Root-Prozess soll nicht
+  verwaist weiterschreiben.
+
+Die polkit-Regel verlangt jedes Mal das Admin-Passwort (`auth_admin`, kein `_keep`). Vor dem
+Öffnen werden alle Partitionen ausgehängt, dann wird das Gerät mit `O_EXCL` geöffnet: Benutzt noch
+irgendetwas das Gerät, verweigert der Kernel das, eine letzte Absicherung.
+
+### E33 – Windows: Admin-Manifest nur im Release-Build
+Laut Anforderung braucht die App unter Windows Administratorrechte (Manifest `requireAdministrator`).
+Das gilt nur für Release-Builds, sonst müsste man schon zum Entwickeln jedes Mal ein Admin-Terminal
+öffnen. Ohne Adminrechte meldet die App beim Schreiben einen verständlichen Fehler. Vor dem Schreiben
+werden alle Volumes des Sticks gesperrt (`FSCTL_LOCK_VOLUME`) und ausgehängt; die Sperren bleiben bis
+zum Ende offen, sonst hängt Windows sie sofort wieder ein.
+
+### E34 – Abhängigkeiten im Debug-Build optimieren
+`[profile.dev.package."*"] opt-level = 2`: Ohne diese Einstellung hasht ein Debug-Build nur ~15 MB/s,
+und ein Test mit einem echten Image dauert Minuten. Der eigene Code bleibt unoptimiert, damit er
+schnell kompiliert und gut zu debuggen ist.
+
+### E35 – `rust-version` bestimmt, welche Paketversionen Cargo wählt
+Mit `resolver = "3"` wählt Cargo nur Paketversionen, die mit der angegebenen Mindest-Rust-Version
+(`rust-version`) funktionieren. Bei `1.85` blieb Tauri deshalb auf 2.11, weil 2.12 Rust 1.90 braucht.
+Die npm-Pakete waren aber schon 2.12, und `tauri dev` meldete einen Versions-Mismatch. Jetzt steht
+dort `1.90`, und Rust- und npm-Seite von Tauri sind wieder auf derselben Minor-Version.
+
 ## Offene Punkte für spätere Phasen
 - **Kompatibilität des Online-Katalogs:** Wegen `deny_unknown_fields` lehnt eine ältere App einen
   Katalog mit neuen Feldern ab (z. B. `allow_v3`) und fällt auf ihren Cache zurück. Neue Felder darf
@@ -235,5 +296,5 @@ Signaturen ungültig.
   Einträgen ein Issue öffnet (Phase 7).
 - TypeScript-Typen werden noch von Hand gepflegt (`src/lib/types.ts`). Später eventuell mit
   `specta`/`ts-rs` generieren.
-- Windows: `requireAdministrator`-Manifest in `build.rs` (Phase 5).
-- Linux: polkit-Policy + Helper-Binary (Phase 5).
+- Linux-Pakete: Helper nach `/usr/lib/bootforge/`, polkit-Regel nach `/usr/share/polkit-1/actions/` (Phase 7).
+- Komprimierung `xz`/`zstd` beim Schreiben (bisher nur `gzip`, mehr braucht der Katalog noch nicht).

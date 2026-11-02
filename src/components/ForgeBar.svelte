@@ -5,6 +5,7 @@
   import type { CatalogResponse, Distro, Drive, ResolveState, Variant } from "../lib/types";
 
   let {
+    onforge,
     drive,
     driveFits,
     onchoosedrive,
@@ -16,6 +17,7 @@
     origin,
     updated,
   }: {
+    onforge: (title: string) => void;
     drive: Drive | null;
     driveFits: boolean;
     onchoosedrive: () => void;
@@ -39,10 +41,17 @@
   });
   const ready = $derived(resolve?.status === "ok");
 
-  // Bis Phase 5 bleibt „Forge!“ gesperrt – das Schreiben auf den Stick gibt es noch nicht.
-  const flashingAvailable = false;
+  // Windows-Installationsmedien brauchen einen eigenen Schreibmodus (Phase 6).
+  const rawMode = $derived(variant?.flash_mode === "raw");
+  const canForge = $derived(ready && !!drive && driveFits && rawMode && !busy);
   const hint = $derived(
-    !ready ? t("forge.hint.need_variant") : !drive || !driveFits ? t("forge.hint.need_usb") : t("forge.hint.phase5"),
+    !ready
+      ? t("forge.hint.need_variant")
+      : !drive || !driveFits
+        ? t("forge.hint.need_usb")
+        : !rawMode
+          ? t("forge.hint.windows_mode")
+          : "",
   );
 </script>
 
@@ -67,7 +76,7 @@
     <button class="secondary" disabled={!ready || busy} onclick={() => ondownload(label)}>
       {t("forge.download_only")}
     </button>
-    <button class="forge" disabled={!ready || !drive || !driveFits || !flashingAvailable || busy} title={hint}>
+    <button class="forge" disabled={!canForge} title={hint} onclick={() => onforge(label)}>
       {t("forge.button")}
     </button>
   </div>
