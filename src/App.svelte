@@ -7,6 +7,8 @@
   import VariantPanel from "./components/VariantPanel.svelte";
   import ForgeBar from "./components/ForgeBar.svelte";
   import Stepper from "./components/Stepper.svelte";
+  import PreparePanel from "./components/PreparePanel.svelte";
+  import { createJob, run, type Job } from "./lib/job.svelte";
 
   let response = $state<CatalogResponse | null>(null);
   let error = $state<AppError | null>(null);
@@ -16,6 +18,9 @@
 
   /** Ergebnis der Versionsermittlung je Varianten-ID. */
   let resolved = $state<Record<string, ResolveState>>({});
+
+  /** Laufender oder zuletzt gelaufener Download (dann wird die Fortschrittsansicht gezeigt). */
+  let job = $state<Job | null>(null);
 
   // Abgeleiteter Zustand: Schritt 1 ist erst erledigt, wenn die neueste Version feststeht.
   const currentStep = $derived(selectedVariant && resolved[selectedVariant.id]?.status === "ok" ? 2 : 1);
@@ -43,6 +48,13 @@
     // Schon erfolgreich ermittelt oder gerade am Laden? Dann nicht nochmal fragen.
     const current = resolved[v.id];
     if (!current || current.status === "error") resolveVariant(v.id);
+  }
+
+  function startDownload(title: string) {
+    const r = selectedVariant && resolved[selectedVariant.id];
+    if (r?.status !== "ok") return;
+    job = createJob(title, r.image);
+    run(job);
   }
 
   async function resolveVariant(id: string, force = false) {
@@ -89,17 +101,23 @@
         ⚠ {t(`catalog.fallback.${response.origin}`)}
       </div>
     {/if}
-    <main>
-      <DistroList catalog={response.catalog} selected={selectedDistro} onpick={pickDistro} />
-      <VariantPanel
-        distro={selectedDistro}
-        selected={selectedVariant}
-        {resolved}
-        onpick={pickVariant}
-        onretry={(id) => resolveVariant(id, true)}
-      />
-    </main>
+    {#if job}
+      <PreparePanel {job} onclose={() => (job = null)} />
+    {:else}
+      <main>
+        <DistroList catalog={response.catalog} selected={selectedDistro} onpick={pickDistro} />
+        <VariantPanel
+          distro={selectedDistro}
+          selected={selectedVariant}
+          {resolved}
+          onpick={pickVariant}
+          onretry={(id) => resolveVariant(id, true)}
+        />
+      </main>
+    {/if}
     <ForgeBar
+      busy={job !== null}
+      ondownload={startDownload}
       distro={selectedDistro}
       variant={selectedVariant}
       resolve={selectedVariant ? resolved[selectedVariant.id] : undefined}

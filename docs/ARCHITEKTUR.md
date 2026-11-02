@@ -124,7 +124,58 @@ Das Durchlaufen der Listing-Schritte ist rekursiv. Ein `async fn`, das sich selb
 ein Future, das sich selbst enthält, also unendliche Größe. `Box::pin` legt das innere Future auf
 den Heap; dann ist nur ein Zeiger im äußeren Future gespeichert.
 
+### E16 – GPG mit Sequoia und nativem Krypto-Backend
+GPG-Prüfung in der App selbst, statt das `gpg`-Programm aufzurufen: Unter Windows ist `gpg` meist
+nicht installiert, und die Ausgabe von `gpg` zu parsen ist fehleranfällig. Sequoia ist eine
+OpenPGP-Implementierung in Rust. Als Krypto-Backend nehmen wir das jeweils native:
+**CNG** unter Windows (in Windows eingebaut), **Nettle** unter Linux (Systembibliothek, über GnuTLS
+praktisch überall vorhanden). Das reine Rust-Backend stuft Sequoia selbst als experimentell ein.
+
+### E17 – Vertrauensmodell: nur gepinnte Schlüssel
+Der Schlüsselbund wird bei jeder Prüfung frisch über HTTPS geladen, aber **nur Zertifikate mit
+einem Fingerprint aus dem Katalog** werden übernommen. Eine Signatur zählt nur, wenn sie
+kryptografisch stimmt und von genau so einem Schlüssel stammt. Ein Angreifer, der den Schlüsselbund
+oder die Signatur austauscht, scheitert also an den gepinnten Fingerprints.
+
+Bei Clearsign-Dateien (Fedora) wird **nur der Text verwendet, den Sequoia als signiert bestätigt**,
+nie der Rohtext. Sonst könnte jemand Zeilen außerhalb des signierten Bereichs einschmuggeln.
+
+### E18 – Ausnahme: v3-Signaturen (openSUSE)
+openSUSE signiert noch im alten v3-Format, das Sequoia seit 2021 ablehnt. Die Kryptografie
+(RSA-4096 + SHA-512) ist stark, veraltet ist nur das Paketformat (keine geschützten Metadaten,
+64-Bit-Schlüssel-ID). Weil wir ohnehin nur den gepinnten Schlüssel zulassen, ist das vertretbar.
+Die Ausnahme ist **pro Variante** im Katalog anzuschalten (`allow_v3`) und erzeugt eine Warnung.
+Die Alternative wäre, bei openSUSE ganz auf GPG zu verzichten, und das wäre schlechter.
+
+### E19 – Reihenfolge: erst Signatur, dann Download
+Prüfsummendatei und Signatur sind ein paar KB groß, das Image mehrere GB. Deshalb zuerst die
+Signatur prüfen: Ist sie falsch, wird **kein einziges Byte** des Images geladen (ist per Test
+abgesichert). Erst danach wird heruntergeladen. Der Hash läuft während des Downloads mit, sodass
+die fertige Datei nicht noch einmal gelesen werden muss. Bei falschem Hash wird die Datei sofort
+gelöscht.
+
+### E20 – Fortsetzen mit `Range` + `If-Range`
+Abgebrochene Downloads bleiben als `.part` liegen, daneben steht in `.part.json` die URL plus
+ETag/Last-Modified. Beim nächsten Versuch wird der vorhandene Teil eingelesen (für den Hash) und
+ab dort weitergeladen. `If-Range` stellt sicher, dass der Server nur dann ab der Mitte liefert,
+wenn sich die Datei nicht geändert hat. Sonst schickt er sie komplett neu, und wir beginnen von vorn.
+
+### E21 – Binärdaten nie als Text behandeln
+Signaturen (`.gpg`, `.sig`) und manche Schlüsselbünde sind binär. Der erste Entwurf hat sie über
+`get_text` geladen, was ungültiges UTF-8 ersetzt und die Signatur zerstört. Deshalb gibt es
+`get_bytes` für alles, was geprüft wird; `get_text` ist nur für HTML-Listings und JSON da.
+
+### E22 – Dateinamen vom Server misstrauen
+Der Dateiname kommt vom Server. Bevor er als Pfad verwendet wird, wird geprüft: kein `/` oder `\`,
+kein `..`, kein versteckter Name, keine unter Windows verbotenen Zeichen. Sonst könnte ein
+manipulierter Server z. B. `../../.bashrc` überschreiben (Path Traversal).
+
 ## Offene Punkte für spätere Phasen
+- **Kompatibilität des Online-Katalogs:** Wegen `deny_unknown_fields` lehnt eine ältere App einen
+  Katalog mit neuen Feldern ab (z. B. `allow_v3`) und fällt auf ihren Cache zurück. Neue Felder darf
+  der Online-Katalog deshalb erst bekommen, wenn die passende App-Version veröffentlicht ist.
+  Langfristig: `schema_version` erhöhen und pro Version eine eigene Datei anbieten.
+- Speicherplatz vor dem Download prüfen; Download-Ordner wählbar; alte ISOs aufräumen (Phase 7).
 - GitHub Action im Katalog-Repo, die `resolve_all` regelmäßig laufen lässt und bei kaputten
   Einträgen ein Issue öffnet (Phase 7).
 - TypeScript-Typen werden noch von Hand gepflegt (`src/lib/types.ts`). Später eventuell mit

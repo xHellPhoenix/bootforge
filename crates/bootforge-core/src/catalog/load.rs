@@ -68,10 +68,10 @@ pub async fn load<F: Fetcher>(f: &F, url: &Url, cache_dir: &Path) -> Loaded {
                 fallback_reason: None,
             };
         }
-        Ok(Conditional::Body { text, etag }) => match parse(&text) {
+        Ok(Conditional::Body { bytes, etag }) => match parse(&String::from_utf8_lossy(&bytes)) {
             Ok((catalog, warnings)) => {
                 // Cache-Fehler sind nicht schlimm (z. B. schreibgeschützt) – nur weitermachen.
-                let _ = write_cache(cache_dir, &text, &Meta { etag }).await;
+                let _ = write_cache(cache_dir, &bytes, &Meta { etag }).await;
                 return Loaded {
                     catalog,
                     origin: Origin::Remote,
@@ -119,7 +119,7 @@ async fn read_cache(dir: &Path) -> Option<(Catalog, Vec<Issue>, Meta)> {
 
 /// Atomar schreiben: erst in eine temporäre Datei, dann umbenennen. Stürzt die App mitten im
 /// Schreiben ab, bleibt so die alte, vollständige Datei erhalten statt einer halben.
-async fn write_cache(dir: &Path, text: &str, meta: &Meta) -> std::io::Result<()> {
+async fn write_cache(dir: &Path, text: &[u8], meta: &Meta) -> std::io::Result<()> {
     tokio::fs::create_dir_all(dir).await?;
     let (file, meta_file) = paths(dir);
     let tmp = dir.join("catalog.json.tmp");

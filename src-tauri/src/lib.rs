@@ -17,6 +17,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::get_catalog,
             commands::resolve_latest,
+            commands::prepare_image,
+            commands::cancel_prepare,
             commands::app_info
         ])
         .run(tauri::generate_context!())

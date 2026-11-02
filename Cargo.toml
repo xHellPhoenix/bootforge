@@ -24,5 +24,9 @@ schemars = "1"
 # HTTP-Client. Standard-TLS ist in 0.13 rustls (in Rust geschrieben) statt OpenSSL:
 # gleiches Verhalten unter Windows und Linux, keine OpenSSL-Version, die zur Distro passen muss.
 reqwest = { version = "0.13", features = ["json"] }
-tokio = { version = "1", features = ["fs", "macros", "rt-multi-thread", "sync", "time"] }
+tokio = { version = "1", features = ["fs", "macros", "rt-multi-thread", "signal", "sync", "time"] }
 percent-encoding = "2"
+sha2 = "0.11"
+md-5 = "0.11"
+# OpenPGP ohne Standard-Features: das Krypto-Backend wählt jedes Crate pro Betriebssystem selbst.
+sequoia-openpgp = { version = "2", default-features = false }

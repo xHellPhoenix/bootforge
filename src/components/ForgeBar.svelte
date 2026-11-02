@@ -3,12 +3,17 @@
   import type { CatalogResponse, Distro, ResolveState, Variant } from "../lib/types";
 
   let {
+    busy,
+    ondownload,
     distro,
     variant,
     resolve,
     origin,
     updated,
   }: {
+    /** Fortschrittsansicht offen → Knöpfe sperren. */
+    busy: boolean;
+    ondownload: (title: string) => void;
     distro: Distro | null;
     variant: Variant | null;
     resolve: ResolveState | undefined;
@@ -45,7 +50,10 @@
 
   <div class="right">
     <span class="catalog">{t(`catalog.origin.${origin}`)} · {t("catalog.updated", { date: updated })}</span>
-    <button class="forge" disabled={!ready || !usbSelected} title={hint}>
+    <button class="secondary" disabled={!ready || busy} onclick={() => ondownload(label)}>
+      {t("forge.download_only")}
+    </button>
+    <button class="forge" disabled={!ready || !usbSelected || busy} title={hint}>
       {t("forge.button")}
     </button>
   </div>
@@ -85,6 +93,16 @@
   .catalog {
     font-size: 12px;
     color: var(--text-faint);
+  }
+  .secondary {
+    padding: 9px 16px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--bg-elev-2);
+    font-weight: 600;
+  }
+  .secondary:disabled {
+    opacity: 0.45;
   }
   .forge {
     padding: 10px 28px;

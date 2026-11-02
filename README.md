@@ -4,10 +4,12 @@ USB-Boot-Sticks erstellen, **ohne selbst ISOs suchen zu müssen**: Distribution 
 BootForge lädt die jeweils neueste Version direkt von der offiziellen Quelle, prüft sie (SHA-256 und GPG)
 und schreibt sie auf den Stick.
 
-> **Status:** Phase 2 von 7. Der Katalog wird online geladen (mit Cache), und die neueste Version
-> jeder Distro wird live ermittelt. Download und Flashen gibt es noch nicht.
+> **Status:** Phase 3 von 7. Neueste Version ermitteln, herunterladen (mit Fortsetzen) und prüfen
+> (SHA-256/512 + GPG-Signatur des Herstellers) funktionieren. Das Flashen auf USB-Sticks fehlt noch.
 
-![Screenshot](docs/screenshots/phase2-version.png)
+| Version wählen | Herunterladen | Geprüft |
+|---|---|---|
+| ![](docs/screenshots/phase2-version.png) | ![](docs/screenshots/phase3-progress.png) | ![](docs/screenshots/phase3-done.png) |
 
 ## Aufbau
 
@@ -23,7 +25,9 @@ und schreibt sie auf den Stick.
 ## Entwickeln
 
 Voraussetzungen: Rust (stable), Node.js ≥ 20, unter Linux zusätzlich
-`libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev libssl-dev` ([Tauri-Voraussetzungen](https://v2.tauri.app/start/prerequisites/)).
+`libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev libssl-dev` ([Tauri-Voraussetzungen](https://v2.tauri.app/start/prerequisites/))
+sowie für die GPG-Prüfung `nettle-dev clang` (Debian/Ubuntu-Paketnamen). Unter Windows ist nichts
+weiter nötig, dort wird die in Windows eingebaute Kryptografie (CNG) verwendet.
 
 ```bash
 npm install
@@ -37,6 +41,12 @@ Alle Katalogeinträge gegen die echten Server prüfen (zeigt die aktuell neueste
 ```bash
 cargo run -p bootforge-core --example resolve_all                  # eingebauter Katalog
 cargo run -p bootforge-core --example resolve_all ../bootforge-catalog/catalog.json
+```
+
+Eine Variante ohne GUI herunterladen und prüfen (Strg+C bricht ab, erneuter Aufruf setzt fort):
+
+```bash
+cargo run --release -p bootforge-core --example acquire_one -- debian-netinst /tmp/isos
 ```
 
 Einen anderen Katalog in der App testen (nur HTTPS):
@@ -55,7 +65,7 @@ cargo run -p bootforge-core --example gen_schema > catalog/catalog.schema.json
 
 1. ✅ Projektstruktur, Tauri-Grundgerüst, Katalog-Schema + Beispielkatalog
 2. ✅ Katalog über HTTPS laden (mit Cache) + „neueste Version“ ermitteln
-3. Download + Prüfsumme + GPG
+3. ✅ Download + Prüfsumme + GPG
 4. USB-Erkennung (Windows + Linux)
 5. Raw-Flashen + Verifizierung
 6. Windows-ISOs + Windows-Flash-Modus

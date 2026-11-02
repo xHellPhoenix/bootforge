@@ -291,6 +291,12 @@ impl Validator {
             if let Some(k) = &sig.keyring_url {
                 self.https(&gloc, k);
             }
+            if sig.allow_v3 {
+                self.warn(
+                    &gloc,
+                    "veraltete v3-Signaturen sind erlaubt (Ausnahme, siehe FORMAT.md)",
+                );
+            }
         }
     }
 
